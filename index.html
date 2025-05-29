@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Fond Vert - Mobile</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 100%;
+            padding: 10px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            background: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .step {
+            display: none;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .step.active {
+            display: block;
+        }
+
+        .step h2 {
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            text-align: center;
+        }
+
+        .camera-container {
+            position: relative;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        #video {
+            width: 100%;
+            max-width: 400px;
+            border-radius: 15px;
+            transform: scaleX(-1);
+        }
+
+        #canvas, #processCanvas {
+            display: none;
+        }
+
+        .capture-btn {
+            background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px 5px;
+        }
+
+        .capture-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255,107,107,0.4);
+        }
+
+        .backgrounds-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .background-option {
+            border: 3px solid transparent;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .background-option:hover {
+            transform: scale(1.05);
+        }
+
+        .background-option.selected {
+            border-color: #ff6b6b;
+            box-shadow: 0 0 20px rgba(255,107,107,0.5);
+        }
+
+        .background-option img {
+            width: 100%;
+            height: 80px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .preview-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        #previewImage {
+            max-width: 100%;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .controls {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            border: none;
+            color: white;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(78,205,196,0.4);
+        }
+
+        .btn.secondary {
+            background: linear-gradient(45deg, #95a5a6, #7f8c8d);
+        }
+
+        .sensitivity-control {
+            margin: 15px 0;
+        }
+
+        .sensitivity-control label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .sensitivity-control input[type="range"] {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .progress {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+
+        .status.success {
+            background: rgba(46, 204, 113, 0.2);
+            border: 1px solid #2ecc71;
+        }
+
+        .status.error {
+            background: rgba(231, 76, 60, 0.2);
+            border: 1px solid #e74c3c;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 5px;
+            }
+            
+            .header h1 {
+                font-size: 1.2rem;
+            }
+            
+            .step {
+                padding: 15px;
+            }
+            
+            .backgrounds-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📸 Photo Fond Vert</h1>
+            <p>Capturez, modifiez et partagez vos photos avec arrière-plan personnalisé</p>
+        </div>
+
+        <!-- Étape 1: Capture Photo -->
+        <div class="step active" id="step1">
+            <h2>1. Prendre une photo</h2>
+            <div class="camera-container">
+                <video id="video" autoplay playsinline></video>
+                <canvas id="canvas"></canvas>
+                <canvas id="processCanvas"></canvas>
+            </div>
+            <div class="controls">
+                <button class="capture-btn" onclick="startCamera()">📷 Démarrer la caméra</button>
+                <button class="capture-btn" onclick="capturePhoto()">📸 Prendre la photo</button>
+            </div>
+        </div>
+
+        <!-- Étape 2: Sélection du fond -->
+        <div class="step" id="step2">
+            <h2>2. Choisir un arrière-plan</h2>
+            <div class="backgrounds-grid" id="backgroundsGrid">
+                <!-- Les fonds seront ajoutés dynamiquement -->
+            </div>
+            <div class="controls">
+                <button class="btn" onclick="processImage()">✨ Appliquer l'effet</button>
+                <button class="btn secondary" onclick="goToStep(1)">← Retour</button>
+            </div>
+        </div>
+
+        <!-- Étape 3: Traitement -->
+        <div class="step" id="step3">
+            <h2>3. Traitement en cours...</h2>
+            <div class="progress">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <p style="text-align: center; margin-top: 10px;">Suppression du fond vert...</p>
+            
+            <div class="sensitivity-control">
+                <label for="sensitivity">Sensibilité de détection du vert:</label>
+                <input type="range" id="sensitivity" min="10" max="100" value="30">
+                <span id="sensitivityValue">30</span>
+            </div>
+            
+            <div class="controls">
+                <button class="btn" onclick="reprocessImage()">🔄 Retraiter</button>
+                <button class="btn secondary" onclick="goToStep(2)">← Retour</button>
+            </div>
+        </div>
+
+        <!-- Étape 4: Validation -->
+        <div class="step" id="step4">
+            <h2>4. Valider le résultat</h2>
+            <div class="preview-container">
+                <img id="previewImage" alt="Photo traitée">
+            </div>
+            <div class="controls">
+                <button class="btn" onclick="uploadToGoogleDrive()">☁️ Envoyer sur Google Drive</button>
+                <button class="btn" onclick="downloadImage()">💾 Télécharger</button>
+                <button class="btn secondary" onclick="goToStep(3)">← Retour</button>
+                <button class="btn secondary" onclick="restart()">🔄 Recommencer</button>
+            </div>
+        </div>
+
+        <!-- Étape 5: Confirmation -->
+        <div class="step" id="step5">
+            <h2>5. Envoi terminé!</h2>
+            <div class="status success">
+                <p>✅ Votre photo a été envoyée avec succès sur Google Drive!</p>
+            </div>
+            <div class="controls">
+                <button class="btn" onclick="restart()">🔄 Prendre une nouvelle photo</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let video, canvas, ctx, processCanvas, processCtx;
+        let capturedImage = null;
+        let selectedBackground = null;
+        let currentStep = 1;
+
+        // Arrière-plans disponibles
+        const backgrounds = [
+            { id: 1, name: 'Plage', url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9InNreSIgeDE9IjAlIiB5MT0iMCUiIHgyPSIwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiM4N0NFRUIiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNGRkY1RTQiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0idXJsKCNza3kpIi8+PGVsbGlwc2UgY3g9IjEwMCIgY3k9IjgwIiByeD0iNDAiIHJ5PSIyMCIgZmlsbD0iI0ZGRkZGRiIgb3BhY2l0eT0iMC44Ii8+PGVsbGlwc2UgY3g9IjMwMCIgY3k9IjYwIiByeD0iNjAiIHJ5PSIzMCIgZmlsbD0iI0ZGRkZGRiIgb3BhY2l0eT0iMC43Ii8+PHJlY3QgeT0iMjAwIiB3aWR0aD0iNDAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI0Y0RDE0NiIvPjxlbGxpcHNlIGN4PSIzNTAiIGN5PSI4MCIgcng9IjI1IiByeT0iMjUiIGZpbGw9IiNGRkQ3MDAiLz48L3N2Zz4=' },
+            { id: 2, name: 'Montagne', url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9InNreTIiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjNDI4NEZCII8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjN0ZBMkY0Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9InVybCgjc2t5MikiLz48cG9seWdvbiBwb2ludHM9IjAsMTgwIDEwMCwxMDAgMjAwLDE0MCA0MDAsMTgwIDQwMCwzMDAgMCwzMDAiIGZpbGw9IiMyNzc0OEIiLz48cG9seWdvbiBwb2ludHM9IjUwLDIyMCAxNTAsMTIwIDI1MCwxNjAgNDAwLDIyMCA0MDAsMzAwIDUwLDMwMCIgZmlsbD0iIzFCNEY2NiIvPjxwb2x5Z29uIHBvaW50cz0iMTAwLDI1MCAyMDAsMTUwIDMwMCwxOTAgNDAwLDI1MCA0MDAsMzAwIDEwMCwzMDAiIGZpbGw9IiMxNDNGNTUiLz48L3N2Zz4=' },
+            { id: 3, name: 'Ville', url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9InNreTMiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMzQ0OTVFIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjNjE3NjhEIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9InVybCgjc2t5MykiLz48cmVjdCB4PSIyMCIgeT0iMTgwIiB3aWR0aD0iNDAiIGhlaWdodD0iMTIwIiBmaWxsPSIjMkMyQzMzIi8+PHJlY3QgeD0iODAiIHk9IjE0MCIgd2lkdGg9IjUwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iIzNBM0E0MiIvPjxyZWN0IHg9IjE1MCIgeT0iMTAwIiB3aWR0aD0iNjAiIGhlaWdodD0iMjAwIiBmaWxsPSIjMkMyQzMzIi8+PHJlY3QgeD0iMjMwIiB5PSIxMjAiIHdpZHRoPSI0NSIgaGVpZ2h0PSIxODAiIGZpbGw9IiMzQTNBNDIiLz48cmVjdCB4PSIyOTAiIHk9IjE2MCIgd2lkdGg9IjUwIiBoZWlnaHQ9IjE0MCIgZmlsbD0iIzJDMkMzMyIvPjxyZWN0IHg9IjM1MCIgeT0iMTkwIiB3aWR0aD0iNDAiIGhlaWdodD0iMTEwIiBmaWxsPSIjM0EzQTQyIi8+PC9zdmc+' },
+            { id: 4, name: 'Forêt', url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9InNreTQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjNkVEQzRGIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMkZBMzQ1Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9InVybCgjc2t5NCkiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjE4MCIgcj0iNDAiIGZpbGw9IiMyRjdEMzIiLz48cmVjdCB4PSI0NSIgeT0iMjAwIiB3aWR0aD0iMTAiIGhlaWdodD0iMTAwIiBmaWxsPSIjOEE0NDI0Ii8+PGNpcmNsZSBjeD0iMTUwIiBjeT0iMTYwIiByPSI1MCIgZmlsbD0iIzJGN0QzMiIvPjxyZWN0IHg9IjE0NSIgeT0iMTkwIiB3aWR0aD0iMTAiIGhlaWdodD0iMTEwIiBmaWxsPSIjOEE0NDI0Ii8+PGNpcmNsZSBjeD0iMjgwIiBjeT0iMTcwIiByPSI0NSIgZmlsbD0iIzJGN0QzMiIvPjxyZWN0IHg9IjI3NSIgeT0iMTk1IiB3aWR0aD0iMTAiIGhlaWdodD0iMTA1IiBmaWxsPSIjOEE0NDI0Ii8+PGNpcmNsZSBjeD0iMzUwIiBjeT0iMTkwIiByPSIzNSIgZmlsbD0iIzJGN0QzMiIvPjxyZWN0IHg9IjM0NSIgeT0iMjEwIiB3aWR0aD0iMTAiIGhlaWdodD0iOTAiIGZpbGw9IiM4QTQ0MjQiLz48L3N2Zz4=' },
+            { id: 5, name: 'Espace', url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9InNwYWNlIiBjeD0iNTAlIiBjeT0iNTAlIiByPSI1MCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMyNDI0MzAiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMwMDAwMDAiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0idXJsKCNzcGFjZSkiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSIyIiBmaWxsPSIjRkZGRkZGIi8+PGNpcmNsZSBjeD0iMTUwIiBjeT0iNDAiIHI9IjEiIGZpbGw9IiNGRkZGRkYiLz48Y2lyY2xlIGN4PSIyNTAiIGN5PSI3MCIgcj0iMS41IiBmaWxsPSIjRkZGRkZGIi8+PGNpcmNsZSBjeD0iMzUwIiBjeT0iNTAiIHI9IjEiIGZpbGw9IiNGRkZGRkYiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxNTAiIHI9IjEiIGZpbGw9IiNGRkZGRkYiLz48Y2lyY2xlIGN4PSIzMDAiIGN5PSIyMDAiIHI9IjIiIGZpbGw9IiNGRkZGRkYiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyNTAiIHI9IjEuNSIgZmlsbD0iI0ZGRkZGRiIvPjxjaXJjbGUgY3g9IjMwMCIgY3k9IjEwMCIgcj0iNDAiIGZpbGw9IiNGRkZGRkYiIG9wYWNpdHk9IjAuMSIvPjxjaXJjbGUgY3g9IjMwMCIgY3k9IjEwMCIgcj0iMzAiIGZpbGw9IiNGRkZGRkYiIG9wYWNpdHk9IjAuMyIvPjxjaXJjbGUgY3g9IjMwMCIgY3k9IjEwMCIgcj0iMjAiIGZpbGw9IiNGRkZGRkYiIG9wYWNpdHk9IjAuNSIvPjwvc3ZnPg==' },
+            { id: 6, name: 'Coucher de soleil', url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9InN1bnNldCIgeDE9IjAlIiB5MT0iMCUiIHgyPSIwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiNGRkE1MDAiLz48c3RvcCBvZmZzZXQ9IjMwJSIgc3RvcC1jb2xvcj0iI0ZGNjkwMCIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSIjRkY0MTAwIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjOTEwNTAwIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9InVybCgjc3Vuc2V0KSIvPjxjaXJjbGUgY3g9IjEwMCIgY3k9IjE4MCIgcj0iNTAiIGZpbGw9IiNGRkQ3MDAiIG9wYWNpdHk9IjAuOCIvPjxlbGxpcHNlIGN4PSIxNTAiIGN5PSIxMDAiIHJ4PSI0MCIgcnk9IjE1IiBmaWxsPSIjRkZGRkZGIiBvcGFjaXR5PSIwLjMiLz48ZWxsaXBzZSBjeD0iMzAwIiBjeT0iMTIwIiByeD0iNjAiIHJ5PSIyMCIgZmlsbD0iI0ZGRkZGRiIgb3BhY2l0eT0iMC4yIi8+PC9zdmc+' }
+        ];
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+
+        function initializeApp() {
+            video = document.getElementById('video');
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+            processCanvas = document.getElementById('processCanvas');
+            processCtx = processCanvas.getContext('2d');
+            
+            createBackgroundGrid();
+            
+            // Gestion du slider de sensibilité
+            const sensitivitySlider = document.getElementById('sensitivity');
+            const sensitivityValue = document.getElementById('sensitivityValue');
+            sensitivitySlider.addEventListener('input', function() {
+                sensitivityValue.textContent = this.value;
+            });
+        }
+
+        function createBackgroundGrid() {
+            const grid = document.getElementById('backgroundsGrid');
+            grid.innerHTML = '';
+            
+            backgrounds.forEach(bg => {
+                const div = document.createElement('div');
+                div.className = 'background-option';
+                div.onclick = () => selectBackground(bg.id);
+                
+                const img = document.createElement('img');
+                img.src = bg.url;
+                img.alt = bg.name;
+                img.title = bg.name;
+                
+                div.appendChild(img);
+                grid.appendChild(div);
+            });
+        }
+
+        function selectBackground(id) {
+            // Désélectionner tous les fonds
+            document.querySelectorAll('.background-option').forEach(el => {
+                el.classList.remove('selected');
+            });
+            
+            // Sélectionner le fond choisi
+            event.target.closest('.background-option').classList.add('selected');
+            selectedBackground = backgrounds.find(bg => bg.id === id);
+        }
+
+        async function startCamera() {
+            try {
+                // Vérifier si on est dans un contexte sécurisé
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('API caméra non disponible');
+                }
+                
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: 'user',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    }
+                });
+                video.srcObject = stream;
+                video.play();
+                
+                // Masquer le message d'erreur s'il était affiché
+                hideSecurityWarning();
+                
+            } catch (error) {
+                console.error('Erreur caméra:', error);
+                
+                if (error.name === 'SecurityError' || error.message.includes('security')) {
+                    showSecurityWarning();
+                } else if (error.name === 'NotAllowedError') {
+                    alert('⚠️ Accès à la caméra refusé. Veuillez autoriser l\'accès dans les paramètres de votre navigateur.');
+                } else {
+                    alert('❌ Impossible d\'accéder à la caméra: ' + error.message);
+                }
+            }
+        }
+        
+        function showSecurityWarning() {
+            // Créer ou afficher le message d'avertissement
+            let warning = document.getElementById('securityWarning');
+            if (!warning) {
+                warning = document.createElement('div');
+                warning.id = 'securityWarning';
+                warning.className = 'status error';
+                warning.innerHTML = `
+                    <h3>🔒 Contexte non sécurisé détecté</h3>
+                    <p><strong>La caméra nécessite HTTPS ou localhost.</strong></p>
+                    <div style="margin: 15px 0; text-align: left;">
+                        <p><strong>Solutions :</strong></p>
+                        <ul style="margin: 10px 0; padding-left: 20px;">
+                            <li>💾 <strong>Sauvegardez</strong> ce fichier HTML et ouvrez-le localement</li>
+                            <li>🌐 <strong>Hébergez</strong> sur Netlify, Vercel, ou GitHub Pages</li>
+                            <li>⚡ <strong>Testez</strong> sur localhost avec un serveur local</li>
+                        </ul>
+                    </div>
+                    <button class="btn" onclick="showUploadOption()">📁 Utiliser une photo existante</button>
+                `;
+                document.querySelector('#step1 .controls').appendChild(warning);
+            }
+            warning.style.display = 'block';
+        }
+        
+        function hideSecurityWarning() {
+            const warning = document.getElementById('securityWarning');
+            if (warning) {
+                warning.style.display = 'none';
+            }
+        }
+        
+        function showUploadOption() {
+            // Créer un input file pour upload de photo existante
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        capturedImage = e.target.result;
+                        goToStep(2);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+            input.click();
+        }
+
+        function capturePhoto() {
+            if (!video.videoWidth) {
+                alert('La caméra n\'est pas encore prête. Veuillez attendre...');
+                return;
+            }
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Capturer l'image (miroir pour selfie)
+            ctx.save();
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+            ctx.restore();
+            
+            capturedImage = canvas.toDataURL('image/png');
+            
+            // Arrêter la caméra
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+            
+            goToStep(2);
+        }
+
+        function processImage() {
+            if (!capturedImage || !selectedBackground) {
+                alert('Veuillez d\'abord capturer une photo et sélectionner un arrière-plan.');
+                return;
+            }
+            
+            goToStep(3);
+            
+            // Simuler le traitement avec une barre de progression
+            let progress = 0;
+            const progressBar = document.getElementById('progressBar');
+            
+            const interval = setInterval(() => {
+                progress += 10;
+                progressBar.style.width = progress + '%';
+                
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    performGreenScreenEffect();
+                }
+            }, 200);
+        }
+
+        function performGreenScreenEffect() {
+            const sensitivity = parseInt(document.getElementById('sensitivity').value);
+            
+            // Charger l'image capturée
+            const img = new Image();
+            img.onload = function() {
+                processCanvas.width = img.width;
+                processCanvas.height = img.height;
+                
+                // Dessiner l'image originale
+                processCtx.drawImage(img, 0, 0);
+                
+                // Charger l'arrière-plan
+                const bgImg = new Image();
+                bgImg.onload = function() {
+                    // Créer un canvas temporaire pour l'arrière-plan redimensionné
+                    const tempCanvas = document.createElement('canvas');
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCanvas.width = img.width;
+                    tempCanvas.height = img.height;
+                    
+                    // Dessiner l'arrière-plan redimensionné
+                    tempCtx.drawImage(bgImg, 0, 0, img.width, img.height);
+                    
+                    // Appliquer l'effet de suppression de fond vert
+                    const imageData = processCtx.getImageData(0, 0, processCanvas.width, processCanvas.height);
+                    const bgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+                    const data = imageData.data;
+                    const bgPixels = bgData.data;
+                    
+                    for (let i = 0; i < data.length; i += 4) {
+                        const r = data[i];
+                        const g = data[i + 1];
+                        const b = data[i + 2];
+                        
+                        // Détection du vert (chroma key)
+                        if (g > r + sensitivity && g > b + sensitivity && g > 100) {
+                            // Remplacer par l'arrière-plan
+                            data[i] = bgPixels[i];
+                            data[i + 1] = bgPixels[i + 1];
+                            data[i + 2] = bgPixels[i + 2];
+                            data[i + 3] = bgPixels[i + 3];
+                        }
+                    }
+                    
+                    processCtx.putImageData(imageData, 0, 0);
+                    
+                    // Afficher le résultat
+                    const result = processCanvas.toDataURL('image/png');
+                    document.getElementById('previewImage').src = result;
+                    
+                    goToStep(4);
+                };
+                bgImg.src = selectedBackground.url;
+            };
+            img.src = capturedImage;
+        }
+
+        function reprocessImage() {
+            performGreenScreenEffect();
+        }
+
+        function downloadImage() {
+            const link = document.createElement('a');
+            link.download = 'photo-fond-vert-' + new Date().getTime() + '.png';
+            link.href = document.getElementById('previewImage').src;
+            link.click();
+        }
+
+        function uploadToGoogleDrive() {
+            // Simulation de l'upload vers Google Drive
+            // Dans une vraie application, ici on ferait l'intégration avec l'API Google Drive
+            
+            // Simuler un délai d'upload
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '⏳ Envoi en cours...';
+            
+            setTimeout(() => {
+                goToStep(5);
+            }, 2000);
+        }
+
+        function goToStep(step) {
+            // Masquer toutes les étapes
+            document.querySelectorAll('.step').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            // Afficher l'étape demandée
+            document.getElementById('step' + step).classList.add('active');
+            currentStep = step;
+        }
+
+        function restart() {
+            // Réinitialiser toutes les variables
+            capturedImage = null;
+            selectedBackground = null;
+            currentStep = 1;
+            
+            // Remettre la barre de progression à zéro
+            document.getElementById('progressBar').style.width = '0%';
+            
+            // Réinitialiser les boutons
+            document.querySelectorAll('.btn').forEach(btn => {
+                btn.disabled = false;
+                btn.textContent = btn.textContent.replace('⏳ Envoi en cours...', '☁️ Envoyer sur Google Drive');
+            });
+            
+            // Retourner à l'étape 1
+            goToStep(1);
+        }
+    </script>
+</body>
+</html>
