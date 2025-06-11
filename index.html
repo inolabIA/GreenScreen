@@ -1,9 +1,43 @@
 <!DOCTYPE html>
 <html lang="fr">
+<!--
+🔧 CONFIGURATION GOOGLE DRIVE API REQUISE
+
+Pour activer l'envoi vers Google Drive, suivez ces étapes :
+
+1. 📋 GOOGLE CLOUD CONSOLE
+   - Allez sur https://console.cloud.google.com/
+   - Créez un nouveau projet ou sélectionnez un projet existant
+   - Activez l'API Google Drive (APIs & Services > Library > Google Drive API)
+
+2. 🔑 CRÉER LES IDENTIFIANTS
+   - APIs & Services > Credentials
+   - Create Credentials > OAuth 2.0 Client IDs
+   - Application type: Web application
+   - Authorized JavaScript origins: ajoutez votre domaine (ex: https://yourapp.netlify.app)
+   - Authorized redirect URIs: ajoutez votre domaine + /callback
+
+3. 🔧 CONFIGURATION DANS LE CODE
+   - Remplacez GOOGLE_CONFIG.CLIENT_ID par votre Client ID OAuth 2.0
+   - Créez une API Key (Credentials > Create Credentials > API Key)
+   - Remplacez GOOGLE_CONFIG.API_KEY par votre API Key
+
+4. 🚀 DÉPLOIEMENT
+   - L'app doit être hébergée sur HTTPS (Netlify, Vercel, etc.)
+   - Localhost ne fonctionne que pour les tests
+
+⚠️ IMPORTANT: Ne jamais exposer ces clés dans un repository public !
+Utilisez des variables d'environnement en production.
+-->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Photo Fond Vert - Mobile</title>
+    <title>Green Screen App</title>
+    
+    <!-- Google API Script -->
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://accounts.google.com/gsi/client"></script>
+    
     <style>
         * {
             margin: 0;
@@ -12,537 +46,931 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #2F2F2F;
             color: white;
+            min-height: 100vh;
+            overflow-x: hidden;
         }
 
-        .container {
-            max-width: 100%;
-            padding: 10px;
-            margin: 0 auto;
+        .screen {
+            display: none;
+            min-height: 100vh;
+            position: relative;
+            padding: 20px;
+        }
+
+        .screen.active {
+            display: flex;
+            flex-direction: column;
         }
 
         .header {
-            text-align: center;
-            padding: 20px 0;
-            background: rgba(0,0,0,0.2);
-            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             margin-bottom: 20px;
+            height: 60px;
         }
 
-        .header h1 {
-            font-size: 1.5rem;
-            margin-bottom: 10px;
+        .logo-placeholder {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #8B5CF6, #A855F7);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
         }
 
-        .step {
-            display: none;
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
+        .close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 10px;
         }
 
-        .step.active {
-            display: block;
-        }
-
-        .step h2 {
-            margin-bottom: 15px;
-            font-size: 1.3rem;
+        .title {
+            font-size: 20px;
+            font-weight: 600;
             text-align: center;
+            flex: 1;
         }
 
+        /* Écran 1 - Caméra */
         .camera-container {
-            position: relative;
-            text-align: center;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #1F1F1F;
+            border-radius: 16px;
             margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
         }
 
         #video {
             width: 100%;
-            max-width: 400px;
-            border-radius: 15px;
-            transform: scaleX(-1);
-        }
-
-        #canvas, #processCanvas {
-            display: none;
-        }
-
-        .capture-btn {
-            background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
-            border: none;
-            color: white;
-            padding: 15px 30px;
-            border-radius: 50px;
-            font-size: 1.1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin: 10px 5px;
-        }
-
-        .capture-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(255,107,107,0.4);
-        }
-
-        .backgrounds-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .background-option {
-            border: 3px solid transparent;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            overflow: hidden;
-        }
-
-        .background-option:hover {
-            transform: scale(1.05);
-        }
-
-        .background-option.selected {
-            border-color: #ff6b6b;
-            box-shadow: 0 0 20px rgba(255,107,107,0.5);
-        }
-
-        .background-option img {
-            width: 100%;
-            height: 80px;
+            height: 100%;
             object-fit: cover;
-            display: block;
+            border-radius: 16px;
         }
 
-        .preview-container {
-            text-align: center;
+        .camera-placeholder {
+            width: 100%;
+            height: 400px;
+            background: #3F3F3F;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: #888;
+        }
+
+        .countdown-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 72px;
+            font-weight: bold;
+            color: #8B5CF6;
+        }
+
+        .controls-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
             margin-bottom: 20px;
         }
 
-        #previewImage {
-            max-width: 100%;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        .btn-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(139, 92, 246, 0.2);
+            border: 2px solid #8B5CF6;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 20px;
         }
 
-        .controls {
-            text-align: center;
-            margin-top: 20px;
+        .btn-capture {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: #8B5CF6;
+            border: 4px solid rgba(139, 92, 246, 0.3);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 24px;
+            transition: all 0.2s ease;
         }
 
-        .btn {
-            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+        .btn-capture:active {
+            transform: scale(0.95);
+        }
+
+        .btn-secondary {
+            background: #8B5CF6;
             border: none;
             color: white;
-            padding: 12px 25px;
+            padding: 12px 24px;
             border-radius: 25px;
-            font-size: 1rem;
+            font-size: 16px;
             cursor: pointer;
-            transition: all 0.3s ease;
-            margin: 5px;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(78,205,196,0.4);
-        }
-
-        .btn.secondary {
-            background: linear-gradient(45deg, #95a5a6, #7f8c8d);
-        }
-
-        .sensitivity-control {
-            margin: 15px 0;
-        }
-
-        .sensitivity-control label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-
-        .sensitivity-control input[type="range"] {
-            width: 100%;
+            transition: all 0.2s ease;
             margin-bottom: 10px;
         }
 
-        .progress {
+        .btn-secondary:hover {
+            background: #7C3AED;
+        }
+
+        /* Écran 2 - Sélection background */
+        .photo-preview {
             width: 100%;
-            height: 8px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 4px;
+            height: 300px;
+            background: #1F1F1F;
+            border-radius: 16px;
+            margin-bottom: 30px;
             overflow: hidden;
-            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .progress-bar {
+        .photo-preview img {
+            width: 100%;
             height: 100%;
-            background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
-            width: 0%;
-            transition: width 0.3s ease;
+            object-fit: cover;
         }
 
-        .status {
+        .section-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .backgrounds-carousel {
+            display: flex;
+            gap: 15px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+
+        .backgrounds-carousel::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .backgrounds-carousel::-webkit-scrollbar-track {
+            background: #1F1F1F;
+            border-radius: 2px;
+        }
+
+        .backgrounds-carousel::-webkit-scrollbar-thumb {
+            background: #8B5CF6;
+            border-radius: 2px;
+        }
+
+        .background-item {
+            flex-shrink: 0;
+            width: 100px;
+            height: 80px;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .background-item.selected {
+            border-color: #8B5CF6;
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+        }
+
+        .background-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .upload-option {
+            flex-shrink: 0;
+            width: 100px;
+            height: 80px;
+            border-radius: 12px;
+            background: rgba(139, 92, 246, 0.2);
+            border: 2px dashed #8B5CF6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 24px;
+            color: #8B5CF6;
+        }
+
+        .btn-validate {
+            background: #10B981;
+            border: none;
+            color: white;
+            padding: 16px 32px;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: auto;
+            transition: all 0.2s ease;
+        }
+
+        .btn-validate:hover {
+            background: #059669;
+        }
+
+        .btn-validate:disabled {
+            background: #6B7280;
+            cursor: not-allowed;
+        }
+
+        /* Écran 3 - Résultat */
+        .result-preview {
+            flex: 1;
+            background: #1F1F1F;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .result-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .btn-share {
+            background: #10B981;
+            border: none;
+            color: white;
+            padding: 16px 32px;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+
+        .btn-share:hover {
+            background: #059669;
+        }
+
+        .processing-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .processing-content {
+            background: #2F2F2F;
+            padding: 40px;
+            border-radius: 16px;
             text-align: center;
-            padding: 10px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(139, 92, 246, 0.3);
+            border-top: 4px solid #8B5CF6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #hiddenCanvas, #processCanvas {
+            display: none;
+        }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #EF4444;
+            color: #FCA5A5;
+            padding: 15px;
             border-radius: 8px;
-            margin: 10px 0;
-            font-weight: bold;
-        }
-
-        .status.success {
-            background: rgba(46, 204, 113, 0.2);
-            border: 1px solid #2ecc71;
-        }
-
-        .status.error {
-            background: rgba(231, 76, 60, 0.2);
-            border: 1px solid #e74c3c;
+            margin: 15px 0;
+            text-align: center;
         }
 
         @media (max-width: 768px) {
-            .container {
-                padding: 5px;
+            .controls-row {
+                justify-content: center;
+                gap: 30px;
             }
             
-            .header h1 {
-                font-size: 1.2rem;
+            .backgrounds-carousel {
+                gap: 10px;
             }
             
-            .step {
-                padding: 15px;
-            }
-            
-            .backgrounds-grid {
-                grid-template-columns: repeat(3, 1fr);
+            .background-item, .upload-option {
+                width: 80px;
+                height: 64px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <!-- Écran 1: Caméra -->
+    <div class="screen active" id="screen1">
         <div class="header">
-            <h1>📸 Photo Fond Vert</h1>
-            <p>Capturez, modifiez et partagez vos photos avec arrière-plan personnalisé</p>
+            <div class="logo-placeholder">📷</div>
+            <div class="title">Green Capture</div>
+            <button class="close-btn" onclick="closeApp()">×</button>
         </div>
-
-        <!-- Étape 1: Capture Photo -->
-        <div class="step active" id="step1">
-            <h2>1. Prendre une photo</h2>
-            <div class="camera-container">
-                <video id="video" autoplay playsinline></video>
-                <canvas id="canvas"></canvas>
-                <canvas id="processCanvas"></canvas>
+        
+        <div class="camera-container">
+            <video id="video" autoplay playsinline muted></video>
+            <div class="camera-placeholder" id="cameraPlaceholder">
+                Appuyez sur 📸 pour démarrer la caméra
             </div>
-            <div class="controls">
-                <button class="capture-btn" onclick="startCamera()">📷 Démarrer la caméra</button>
-                <button class="capture-btn" onclick="capturePhoto()">📸 Prendre la photo</button>
+            <div class="countdown-overlay" id="countdownOverlay">
+                <span id="countdownNumber">5</span>
             </div>
         </div>
-
-        <!-- Étape 2: Sélection du fond -->
-        <div class="step" id="step2">
-            <h2>2. Choisir un arrière-plan</h2>
-            <div class="backgrounds-grid" id="backgroundsGrid">
-                <!-- Les fonds seront ajoutés dynamiquement -->
-            </div>
-            <div class="controls">
-                <button class="btn" onclick="processImage()">✨ Appliquer l'effet</button>
-                <button class="btn secondary" onclick="goToStep(1)">← Retour</button>
-            </div>
+        
+        <div class="controls-row">
+            <button class="btn-icon" onclick="loadFromDevice()" title="Charger une photo">
+                📁
+            </button>
+            <button class="btn-capture" id="captureBtn" onclick="capturePhoto()" title="Démarrer la caméra / Prendre une photo">
+                📸
+            </button>
+            <button class="btn-icon" onclick="switchCamera()" title="Changer de caméra">
+                🔄
+            </button>
         </div>
+        
+        <div id="errorMessage"></div>
+    </div>
 
-        <!-- Étape 3: Traitement -->
-        <div class="step" id="step3">
-            <h2>3. Traitement en cours...</h2>
-            <div class="progress">
-                <div class="progress-bar" id="progressBar"></div>
-            </div>
-            <p style="text-align: center; margin-top: 10px;">Suppression du fond vert...</p>
-            
-            <div class="sensitivity-control">
-                <label for="sensitivity">Sensibilité de détection du vert:</label>
-                <input type="range" id="sensitivity" min="10" max="100" value="30">
-                <span id="sensitivityValue">30</span>
-            </div>
-            
-            <div class="controls">
-                <button class="btn" onclick="reprocessImage()">🔄 Retraiter</button>
-                <button class="btn secondary" onclick="goToStep(2)">← Retour</button>
-            </div>
+    <!-- Écran 2: Sélection arrière-plan -->
+    <div class="screen" id="screen2">
+        <div class="header">
+            <div class="logo-placeholder">📷</div>
+            <div class="title">Green Screen</div>
+            <button class="close-btn" onclick="goToScreen(1)">×</button>
         </div>
-
-        <!-- Étape 4: Validation -->
-        <div class="step" id="step4">
-            <h2>4. Valider le résultat</h2>
-            <div class="preview-container">
-                <img id="previewImage" alt="Photo traitée">
-            </div>
-            <div class="controls">
-                <button class="btn" onclick="uploadToGoogleDrive()">☁️ Envoyer sur Google Drive</button>
-                <button class="btn" onclick="downloadImage()">💾 Télécharger</button>
-                <button class="btn secondary" onclick="goToStep(3)">← Retour</button>
-                <button class="btn secondary" onclick="restart()">🔄 Recommencer</button>
-            </div>
+        
+        <div class="photo-preview">
+            <img id="capturedPhoto" alt="Photo capturée">
         </div>
+        
+        <div class="section-title">Background</div>
+        
+        <div class="backgrounds-carousel" id="backgroundsCarousel">
+            <!-- Les arrière-plans seront ajoutés ici -->
+        </div>
+        
+        <button class="btn-validate" id="validateBtn" onclick="processImage()" disabled>
+            Valider
+        </button>
+    </div>
 
-        <!-- Étape 5: Confirmation -->
-        <div class="step" id="step5">
-            <h2>5. Envoi terminé!</h2>
-            <div class="status success">
-                <p>✅ Votre photo a été envoyée avec succès sur Google Drive!</p>
-            </div>
-            <div class="controls">
-                <button class="btn" onclick="restart()">🔄 Prendre une nouvelle photo</button>
-            </div>
+    <!-- Écran 3: Résultat -->
+    <div class="screen" id="screen3">
+        <div class="header">
+            <div class="logo-placeholder">📷</div>
+            <div class="title">Résultat</div>
+            <button class="close-btn" onclick="goToScreen(1)">×</button>
+        </div>
+        
+        <div class="result-preview">
+            <img id="finalResult" alt="Résultat final">
+        </div>
+        
+        <button class="btn-share" onclick="shareResult()">
+            <span id="shareButtonText">Partager</span>
+            <small id="shareButtonSubtext" style="display: block; font-size: 12px; opacity: 0.8; margin-top: 4px;">
+                Sauvegarde locale + Google Drive
+            </small>
+        </button>
+    </div>
+
+    <!-- Overlay de traitement -->
+    <div class="processing-overlay" id="processingOverlay">
+        <div class="processing-content">
+            <div class="spinner"></div>
+            <p>Traitement en cours...</p>
         </div>
     </div>
 
-    <script>
-        let video, canvas, ctx, processCanvas, processCtx;
-        let capturedImage = null;
-        let selectedBackground = null;
-        let currentStep = 1;
+    <!-- Canvas cachés -->
+    <canvas id="hiddenCanvas"></canvas>
+    <canvas id="processCanvas"></canvas>
+    
+    <input type="file" id="fileInput" accept="image/*" style="display: none;">
 
+    <script>
+        let currentScreen = 1;
+        let video, stream;
+        let capturedImageData = null;
+        let selectedBackground = null;
+        let currentCamera = 'user'; // 'user' pour frontale, 'environment' pour arrière
+        let isCameraStarted = false; // Nouveau: état de la caméra
+        
+        // Configuration Google Drive API
+        const GOOGLE_CONFIG = {
+            CLIENT_ID: 'VOTRE_CLIENT_ID.apps.googleusercontent.com', // À remplacer
+            API_KEY: 'VOTRE_API_KEY', // À remplacer
+            DISCOVERY_DOC: 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
+            SCOPES: 'https://www.googleapis.com/auth/drive.file'
+        };
+        
+        let isGoogleApiInitialized = false;
+        let isUserSignedIn = false;
+        
         // Arrière-plans disponibles
         const backgrounds = [
-            { id: 1, name: 'Plage', url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9InNreSIgeDE9IjAlIiB5MT0iMCUiIHgyPSIwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiM4N0NFRUIiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNGRkY1RTQiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0idXJsKCNza3kpIi8+PGVsbGlwc2UgY3g9IjEwMCIgY3k9IjgwIiByeD0iNDAiIHJ5PSIyMCIgZmlsbD0iI0ZGRkZGRiIgb3BhY2l0eT0iMC44Ii8+PGVsbGlwc2UgY3g9IjMwMCIgY3k9IjYwIiByeD0iNjAiIHJ5PSIzMCIgZmlsbD0iI0ZGRkZGRiIgb3BhY2l0eT0iMC43Ii8+PHJlY3QgeT0iMjAwIiB3aWR0aD0iNDAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI0Y0RDE0NiIvPjxlbGxpcHNlIGN4PSIzNTAiIGN5PSI4MCIgcng9IjI1IiByeT0iMjUiIGZpbGw9IiNGRkQ3MDAiLz48L3N2Zz4=' },
-            { id: 2, name: 'Montagne', url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9InNreTIiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjNDI4NEZCII8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjN0ZBMkY0Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9InVybCgjc2t5MikiLz48cG9seWdvbiBwb2ludHM9IjAsMTgwIDEwMCwxMDAgMjAwLDE0MCA0MDAsMTgwIDQwMCwzMDAgMCwzMDAiIGZpbGw9IiMyNzc0OEIiLz48cG9seWdvbiBwb2ludHM9IjUwLDIyMCAxNTAsMTIwIDI1MCwxNjAgNDAwLDIyMCA0MDAsMzAwIDUwLDMwMCIgZmlsbD0iIzFCNEY2NiIvPjxwb2x5Z29uIHBvaW50cz0iMTAwLDI1MCAyMDAsMTUwIDMwMCwxOTAgNDAwLDI1MCA0MDAsMzAwIDEwMCwzMDAiIGZpbGw9IiMxNDNGNTUiLz48L3N2Zz4=' },
-            { id: 3, name: 'Ville', url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9InNreTMiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMzQ0OTVFIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjNjE3NjhEIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9InVybCgjc2t5MykiLz48cmVjdCB4PSIyMCIgeT0iMTgwIiB3aWR0aD0iNDAiIGhlaWdodD0iMTIwIiBmaWxsPSIjMkMyQzMzIi8+PHJlY3QgeD0iODAiIHk9IjE0MCIgd2lkdGg9IjUwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iIzNBM0E0MiIvPjxyZWN0IHg9IjE1MCIgeT0iMTAwIiB3aWR0aD0iNjAiIGhlaWdodD0iMjAwIiBmaWxsPSIjMkMyQzMzIi8+PHJlY3QgeD0iMjMwIiB5PSIxMjAiIHdpZHRoPSI0NSIgaGVpZ2h0PSIxODAiIGZpbGw9IiMzQTNBNDIiLz48cmVjdCB4PSIyOTAiIHk9IjE2MCIgd2lkdGg9IjUwIiBoZWlnaHQ9IjE0MCIgZmlsbD0iIzJDMkMzMyIvPjxyZWN0IHg9IjM1MCIgeT0iMTkwIiB3aWR0aD0iNDAiIGhlaWdodD0iMTEwIiBmaWxsPSIjM0EzQTQyIi8+PC9zdmc+' },
-            { id: 4, name: 'Forêt', url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9InNreTQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjNkVEQzRGIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMkZBMzQ1Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9InVybCgjc2t5NCkiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjE4MCIgcj0iNDAiIGZpbGw9IiMyRjdEMzIiLz48cmVjdCB4PSI0NSIgeT0iMjAwIiB3aWR0aD0iMTAiIGhlaWdodD0iMTAwIiBmaWxsPSIjOEE0NDI0Ii8+PGNpcmNsZSBjeD0iMTUwIiBjeT0iMTYwIiByPSI1MCIgZmlsbD0iIzJGN0QzMiIvPjxyZWN0IHg9IjE0NSIgeT0iMTkwIiB3aWR0aD0iMTAiIGhlaWdodD0iMTEwIiBmaWxsPSIjOEE0NDI0Ii8+PGNpcmNsZSBjeD0iMjgwIiBjeT0iMTcwIiByPSI0NSIgZmlsbD0iIzJGN0QzMiIvPjxyZWN0IHg9IjI3NSIgeT0iMTk1IiB3aWR0aD0iMTAiIGhlaWdodD0iMTA1IiBmaWxsPSIjOEE0NDI0Ii8+PGNpcmNsZSBjeD0iMzUwIiBjeT0iMTkwIiByPSIzNSIgZmlsbD0iIzJGN0QzMiIvPjxyZWN0IHg9IjM0NSIgeT0iMjEwIiB3aWR0aD0iMTAiIGhlaWdodD0iOTAiIGZpbGw9IiM4QTQ0MjQiLz48L3N2Zz4=' },
-            { id: 5, name: 'Espace', url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9InNwYWNlIiBjeD0iNTAlIiBjeT0iNTAlIiByPSI1MCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMyNDI0MzAiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMwMDAwMDAiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0idXJsKCNzcGFjZSkiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSIyIiBmaWxsPSIjRkZGRkZGIi8+PGNpcmNsZSBjeD0iMTUwIiBjeT0iNDAiIHI9IjEiIGZpbGw9IiNGRkZGRkYiLz48Y2lyY2xlIGN4PSIyNTAiIGN5PSI3MCIgcj0iMS41IiBmaWxsPSIjRkZGRkZGIi8+PGNpcmNsZSBjeD0iMzUwIiBjeT0iNTAiIHI9IjEiIGZpbGw9IiNGRkZGRkYiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxNTAiIHI9IjEiIGZpbGw9IiNGRkZGRkYiLz48Y2lyY2xlIGN4PSIzMDAiIGN5PSIyMDAiIHI9IjIiIGZpbGw9IiNGRkZGRkYiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyNTAiIHI9IjEuNSIgZmlsbD0iI0ZGRkZGRiIvPjxjaXJjbGUgY3g9IjMwMCIgY3k9IjEwMCIgcj0iNDAiIGZpbGw9IiNGRkZGRkYiIG9wYWNpdHk9IjAuMSIvPjxjaXJjbGUgY3g9IjMwMCIgY3k9IjEwMCIgcj0iMzAiIGZpbGw9IiNGRkZGRkYiIG9wYWNpdHk9IjAuMyIvPjxjaXJjbGUgY3g9IjMwMCIgY3k9IjEwMCIgcj0iMjAiIGZpbGw9IiNGRkZGRkYiIG9wYWNpdHk9IjAuNSIvPjwvc3ZnPg==' },
-            { id: 6, name: 'Coucher de soleil', url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9InN1bnNldCIgeDE9IjAlIiB5MT0iMCUiIHgyPSIwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiNGRkE1MDAiLz48c3RvcCBvZmZzZXQ9IjMwJSIgc3RvcC1jb2xvcj0iI0ZGNjkwMCIvPjxzdG9wIG9mZnNldD0iNzAlIiBzdG9wLWNvbG9yPSIjRkY0MTAwIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjOTEwNTAwIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9InVybCgjc3Vuc2V0KSIvPjxjaXJjbGUgY3g9IjEwMCIgY3k9IjE4MCIgcj0iNTAiIGZpbGw9IiNGRkQ3MDAiIG9wYWNpdHk9IjAuOCIvPjxlbGxpcHNlIGN4PSIxNTAiIGN5PSIxMDAiIHJ4PSI0MCIgcnk9IjE1IiBmaWxsPSIjRkZGRkZGIiBvcGFjaXR5PSIwLjMiLz48ZWxsaXBzZSBjeD0iMzAwIiBjeT0iMTIwIiByeD0iNjAiIHJ5PSIyMCIgZmlsbD0iI0ZGRkZGRiIgb3BhY2l0eT0iMC4yIi8+PC9zdmc+' }
+            { id: 'mountain', name: 'Montagne', url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9InNreTIiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjNDI4NEZCII8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjN0ZBMkY0Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9InVybCgjc2t5MikiLz48cG9seWdvbiBwb2ludHM9IjAsMTgwIDEwMCwxMDAgMjAwLDE0MCA0MDAsMTgwIDQwMCwzMDAgMCwzMDAiIGZpbGw9IiMyNzc0OEIiLz48cG9seWdvbiBwb2ludHM9IjUwLDIyMCAxNTAsMTIwIDI1MCwxNjAgNDAwLDIyMCA0MDAsMzAwIDUwLDMwMCIgZmlsbD0iIzFCNEY2NiIvPjxwb2x5Z29uIHBvaW50cz0iMTAwLDI1MCAyMDAsMTUwIDMwMCwxOTAgNDAwLDI1MCA0MDAsMzAwIDEwMCwzMDAiIGZpbGw9IiMxNDNGNTUiLz48L3N2Zz4=' },
+            { id: 'beach', name: 'Plage', url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9InNreSIgeDE9IjAlIiB5MT0iMCUiIHgyPSIwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiM4N0NFRUIiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNGRkY1RTQiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0idXJsKCNza3kpIi8+PGVsbGlwc2UgY3g9IjEwMCIgY3k9IjgwIiByeD0iNDAiIHJ5PSIyMCIgZmlsbD0iI0ZGRkZGRiIgb3BhY2l0eT0iMC44Ii8+PGVsbGlwc2UgY3g9IjMwMCIgY3k9IjYwIiByeD0iNjAiIHJ5PSIzMCIgZmlsbD0iI0ZGRkZGRiIgb3BhY2l0eT0iMC43Ii8+PHJlY3QgeT0iMjAwIiB3aWR0aD0iNDAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI0Y0RDE0NiIvPjxlbGxpcHNlIGN4PSIzNTAiIGN5PSI4MCIgcng9IjI1IiByeT0iMjUiIGZpbGw9IiNGRkQ3MDAiLz48L3N2Zz4=' },
+            { id: 'city', name: 'Ville', url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9InNreTMiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMzQ0OTVFIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjNjE3NjhEIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9InVybCgjc2t5MykiLz48cmVjdCB4PSIyMCIgeT0iMTgwIiB3aWR0aD0iNDAiIGhlaWdodD0iMTIwIiBmaWxsPSIjMkMyQzMzIi8+PHJlY3QgeD0iODAiIHk9IjE0MCIgd2lkdGg9IjUwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iIzNBM0E0MiIvPjxyZWN0IHg9IjE1MCIgeT0iMTAwIiB3aWR0aD0iNjAiIGhlaWdodD0iMjAwIiBmaWxsPSIjMkMyQzMzIi8+PHJlY3QgeD0iMjMwIiB5PSIxMjAiIHdpZHRoPSI0NSIgaGVpZ2h0PSIxODAiIGZpbGw9IiMzQTNBNDIiLz48cmVjdCB4PSIyOTAiIHk9IjE2MCIgd2lkdGg9IjUwIiBoZWlnaHQ9IjE0MCIgZmlsbD0iIzJDMkMzMyIvPjxyZWN0IHg9IjM1MCIgeT0iMTkwIiB3aWR0aD0iNDAiIGhlaWdodD0iMTEwIiBmaWxsPSIjM0EzQTQyIi8+PC9zdmc+'},
+            { id: 'space', name: 'Espace', url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9InNwYWNlIiBjeD0iNTAlIiBjeT0iNTAlIiByPSI1MCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMyNDI0MzAiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMwMDAwMDAiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0idXJsKCNzcGFjZSkiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSIyIiBmaWxsPSIjRkZGRkZGIi8+PGNpcmNsZSBjeD0iMTUwIiBjeT0iNDAiIHI9IjEiIGZpbGw9IiNGRkZGRkYiLz48Y2lyY2xlIGN4PSIyNTAiIGN5PSI3MCIgcj0iMS41IiBmaWxsPSIjRkZGRkZGIi8+PGNpcmNsZSBjeD0iMzUwIiBjeT0iNTAiIHI9IjEiIGZpbGw9IiNGRkZGRkYiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxNTAiIHI9IjEiIGZpbGw9IiNGRkZGRkYiLz48Y2lyY2xlIGN4PSIzMDAiIGN5PSIyMDAiIHI9IjIiIGZpbGw9IiNGRkZGRkYiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyNTAiIHI9IjEuNSIgZmlsbD0iI0ZGRkZGRiIvPjxjaXJjbGUgY3g9IjMwMCIgY3k9IjEwMCIgcj0iNDAiIGZpbGw9IiNGRkZGRkYiIG9wYWNpdHk9IjAuMSIvPjxjaXJjbGUgY3g9IjMwMCIgY3k9IjEwMCIgcj0iMzAiIGZpbGw9IiNGRkZGRkYiIG9wYWNpdHk9IjAuMyIvPjxjaXJjbGUgY3g9IjMwMCIgY3k9IjEwMCIgcj0iMjAiIGZpbGw9IiNGRkZGRkYiIG9wYWNpdHk9IjAuNSIvPjwvc3ZnPg==' }
         ];
-
+        
         // Initialisation
         document.addEventListener('DOMContentLoaded', function() {
             initializeApp();
+            initializeGoogleAPI();
         });
-
+        
+        async function initializeGoogleAPI() {
+            try {
+                // Vérifier si les clés API sont configurées
+                if (GOOGLE_CONFIG.CLIENT_ID.includes('VOTRE_') || GOOGLE_CONFIG.API_KEY.includes('VOTRE_')) {
+                    console.warn('⚠️ Configuration Google Drive non complétée. Voir les instructions dans le code.');
+                    return;
+                }
+                
+                await gapi.load('client', async () => {
+                    try {
+                        await gapi.client.init({
+                            apiKey: GOOGLE_CONFIG.API_KEY,
+                            discoveryDocs: [GOOGLE_CONFIG.DISCOVERY_DOC],
+                        });
+                        
+                        // Initialiser Google Identity Services
+                        google.accounts.id.initialize({
+                            client_id: GOOGLE_CONFIG.CLIENT_ID,
+                            callback: handleCredentialResponse
+                        });
+                        
+                        isGoogleApiInitialized = true;
+                        console.log('✅ Google Drive API initialisée');
+                        
+                    } catch (error) {
+                        console.error('❌ Erreur initialisation Google API:', error);
+                    }
+                });
+                
+            } catch (error) {
+                console.error('❌ Erreur chargement Google API:', error);
+            }
+        }
+        
+        function handleCredentialResponse(response) {
+            // Gérer la réponse d'authentification
+            const credential = response.credential;
+            
+            // Décoder le JWT pour obtenir les infos utilisateur
+            const payload = JSON.parse(atob(credential.split('.')[1]));
+            console.log('✅ Utilisateur connecté:', payload.name);
+            
+            isUserSignedIn = true;
+            
+            // Mettre à jour l'interface si nécessaire
+            updateAuthUI();
+        }
+        
+        async function signInToGoogle() {
+            if (!isGoogleApiInitialized) {
+                throw new Error('Google API non initialisée');
+            }
+            
+            try {
+                // Utiliser Google Identity Services pour l'authentification
+                const tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: GOOGLE_CONFIG.CLIENT_ID,
+                    scope: GOOGLE_CONFIG.SCOPES,
+                    callback: (tokenResponse) => {
+                        if (tokenResponse.error) {
+                            throw new Error(tokenResponse.error);
+                        }
+                        
+                        // Token reçu, l'utilisateur est authentifié
+                        gapi.client.setToken(tokenResponse);
+                        isUserSignedIn = true;
+                        console.log('✅ Authentification Google réussie');
+                    },
+                });
+                
+                // Demander l'autorisation
+                tokenClient.requestAccessToken();
+                
+            } catch (error) {
+                console.error('❌ Erreur authentification Google:', error);
+                throw error;
+            }
+        }
+        
+        function updateAuthUI() {
+            // Mettre à jour l'interface utilisateur selon l'état de connexion
+            const subtextEl = document.getElementById('shareButtonSubtext');
+            
+            if (!isGoogleApiInitialized || 
+                GOOGLE_CONFIG.CLIENT_ID.includes('VOTRE_') || 
+                GOOGLE_CONFIG.API_KEY.includes('VOTRE_')) {
+                if (subtextEl) {
+                    subtextEl.textContent = 'Sauvegarde locale uniquement';
+                    subtextEl.style.color = '#FCD34D';
+                }
+            } else if (isUserSignedIn) {
+                if (subtextEl) {
+                    subtextEl.textContent = 'Sauvegarde locale + Google Drive ✅';
+                    subtextEl.style.color = '#10B981';
+                }
+            } else {
+                if (subtextEl) {
+                    subtextEl.textContent = 'Sauvegarde locale + Google Drive';
+                    subtextEl.style.color = '#8B5CF6';
+                }
+            }
+        }
+        
         function initializeApp() {
             video = document.getElementById('video');
-            canvas = document.getElementById('canvas');
-            ctx = canvas.getContext('2d');
-            processCanvas = document.getElementById('processCanvas');
-            processCtx = processCanvas.getContext('2d');
+            createBackgroundCarousel();
             
-            createBackgroundGrid();
+            // Gestion du fichier input pour photo à capturer
+            document.getElementById('fileInput').addEventListener('change', handleFileSelect);
             
-            // Gestion du slider de sensibilité
-            const sensitivitySlider = document.getElementById('sensitivity');
-            const sensitivityValue = document.getElementById('sensitivityValue');
-            sensitivitySlider.addEventListener('input', function() {
-                sensitivityValue.textContent = this.value;
-            });
+            // Gestion du fichier input pour arrière-plan personnalisé
+            const bgInput = document.createElement('input');
+            bgInput.type = 'file';
+            bgInput.accept = 'image/*';
+            bgInput.style.display = 'none';
+            bgInput.id = 'backgroundInput';
+            bgInput.addEventListener('change', handleBackgroundSelect);
+            document.body.appendChild(bgInput);
         }
-
-        function createBackgroundGrid() {
-            const grid = document.getElementById('backgroundsGrid');
-            grid.innerHTML = '';
+        
+        function createBackgroundCarousel() {
+            const carousel = document.getElementById('backgroundsCarousel');
+            carousel.innerHTML = '';
             
+            // Ajouter les arrière-plans prédéfinis
             backgrounds.forEach(bg => {
-                const div = document.createElement('div');
-                div.className = 'background-option';
-                div.onclick = () => selectBackground(bg.id);
+                const item = document.createElement('div');
+                item.className = 'background-item';
+                item.onclick = () => selectBackground(bg);
                 
                 const img = document.createElement('img');
                 img.src = bg.url;
                 img.alt = bg.name;
-                img.title = bg.name;
                 
-                div.appendChild(img);
-                grid.appendChild(div);
-            });
-        }
-
-        function selectBackground(id) {
-            // Désélectionner tous les fonds
-            document.querySelectorAll('.background-option').forEach(el => {
-                el.classList.remove('selected');
+                item.appendChild(img);
+                carousel.appendChild(item);
             });
             
-            // Sélectionner le fond choisi
-            event.target.closest('.background-option').classList.add('selected');
-            selectedBackground = backgrounds.find(bg => bg.id === id);
+            // Ajouter l'option d'upload
+            const uploadOption = document.createElement('div');
+            uploadOption.className = 'upload-option';
+            uploadOption.innerHTML = '+';
+            uploadOption.onclick = () => document.getElementById('backgroundInput').click();
+            carousel.appendChild(uploadOption);
         }
-
+        
         async function startCamera() {
             try {
-                // Vérifier si on est dans un contexte sécurisé
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    throw new Error('API caméra non disponible');
+                clearErrorMessage();
+                
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
                 }
                 
-                const stream = await navigator.mediaDevices.getUserMedia({
+                updateCaptureButtonUI('starting');
+                
+                stream = await navigator.mediaDevices.getUserMedia({
                     video: { 
-                        facingMode: 'user',
+                        facingMode: currentCamera,
                         width: { ideal: 640 },
                         height: { ideal: 480 }
                     }
                 });
-                video.srcObject = stream;
-                video.play();
                 
-                // Masquer le message d'erreur s'il était affiché
-                hideSecurityWarning();
+                video.srcObject = stream;
+                document.getElementById('cameraPlaceholder').style.display = 'none';
+                video.style.display = 'block';
+                
+                // Attendre que la vidéo soit prête
+                video.onloadedmetadata = () => {
+                    isCameraStarted = true;
+                    updateCaptureButtonUI('ready');
+                };
                 
             } catch (error) {
                 console.error('Erreur caméra:', error);
-                
-                if (error.name === 'SecurityError' || error.message.includes('security')) {
-                    showSecurityWarning();
-                } else if (error.name === 'NotAllowedError') {
-                    alert('⚠️ Accès à la caméra refusé. Veuillez autoriser l\'accès dans les paramètres de votre navigateur.');
-                } else {
-                    alert('❌ Impossible d\'accéder à la caméra: ' + error.message);
-                }
+                handleCameraError(error);
+                updateCaptureButtonUI('initial');
+                isCameraStarted = false;
             }
         }
         
-        function showSecurityWarning() {
-            // Créer ou afficher le message d'avertissement
-            let warning = document.getElementById('securityWarning');
-            if (!warning) {
-                warning = document.createElement('div');
-                warning.id = 'securityWarning';
-                warning.className = 'status error';
-                warning.innerHTML = `
-                    <h3>🔒 Contexte non sécurisé détecté</h3>
-                    <p><strong>La caméra nécessite HTTPS ou localhost.</strong></p>
-                    <div style="margin: 15px 0; text-align: left;">
-                        <p><strong>Solutions :</strong></p>
-                        <ul style="margin: 10px 0; padding-left: 20px;">
-                            <li>💾 <strong>Sauvegardez</strong> ce fichier HTML et ouvrez-le localement</li>
-                            <li>🌐 <strong>Hébergez</strong> sur Netlify, Vercel, ou GitHub Pages</li>
-                            <li>⚡ <strong>Testez</strong> sur localhost avec un serveur local</li>
-                        </ul>
+        function handleCameraError(error) {
+            let message = '';
+            if (error.name === 'SecurityError' || error.message.includes('security')) {
+                message = `
+                    <div class="error-message">
+                        🔒 <strong>Contexte non sécurisé</strong><br>
+                        La caméra nécessite HTTPS. Hébergez l'app sur Netlify ou utilisez localhost.
                     </div>
-                    <button class="btn" onclick="showUploadOption()">📁 Utiliser une photo existante</button>
                 `;
-                document.querySelector('#step1 .controls').appendChild(warning);
+            } else if (error.name === 'NotAllowedError') {
+                message = '<div class="error-message">❌ Accès à la caméra refusé</div>';
+            } else {
+                message = '<div class="error-message">❌ Erreur caméra: ' + error.message + '</div>';
             }
-            warning.style.display = 'block';
+            document.getElementById('errorMessage').innerHTML = message;
         }
         
-        function hideSecurityWarning() {
-            const warning = document.getElementById('securityWarning');
-            if (warning) {
-                warning.style.display = 'none';
+        function clearErrorMessage() {
+            document.getElementById('errorMessage').innerHTML = '';
+        }
+        
+        function switchCamera() {
+            currentCamera = currentCamera === 'user' ? 'environment' : 'user';
+            if (isCameraStarted && stream) {
+                startCamera();
             }
         }
         
-        function showUploadOption() {
-            // Créer un input file pour upload de photo existante
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/*';
-            input.onchange = function(e) {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        capturedImage = e.target.result;
-                        goToStep(2);
-                    };
-                    reader.readAsDataURL(file);
-                }
-            };
-            input.click();
-        }
-
         function capturePhoto() {
-            if (!video.videoWidth) {
-                alert('La caméra n\'est pas encore prête. Veuillez attendre...');
+            // Si la caméra n'est pas encore démarrée, la démarrer d'abord
+            if (!isCameraStarted || !stream) {
+                startCamera();
+                updateCaptureButtonUI('starting');
                 return;
             }
+            
+            // Si la caméra est en cours de démarrage, attendre
+            if (!video.videoWidth) {
+                alert('⏳ La caméra se démarre, veuillez patienter...');
+                return;
+            }
+            
+            // Caméra prête, prendre la photo
+            updateCaptureButtonUI('ready');
+            startCountdown();
+        }
+        
+        function updateCaptureButtonUI(state) {
+            const captureBtn = document.getElementById('captureBtn');
+            const placeholder = document.getElementById('cameraPlaceholder');
+            
+            switch(state) {
+                case 'starting':
+                    captureBtn.innerHTML = '⏳';
+                    captureBtn.title = 'Démarrage de la caméra...';
+                    if (placeholder) {
+                        placeholder.textContent = 'Démarrage de la caméra...';
+                    }
+                    break;
+                    
+                case 'ready':
+                    captureBtn.innerHTML = '📸';
+                    captureBtn.title = 'Prendre une photo';
+                    break;
+                    
+                case 'initial':
+                default:
+                    captureBtn.innerHTML = '📸';
+                    captureBtn.title = 'Démarrer la caméra / Prendre une photo';
+                    if (placeholder) {
+                        placeholder.textContent = 'Appuyez sur 📸 pour démarrer la caméra';
+                    }
+                    break;
+            }
+        }
+        
+        function startCountdown() {
+            const overlay = document.getElementById('countdownOverlay');
+            const numberEl = document.getElementById('countdownNumber');
+            let count = 5;
+            
+            overlay.style.display = 'flex';
+            
+            const countdown = setInterval(() => {
+                numberEl.textContent = count;
+                count--;
+                
+                if (count < 0) {
+                    clearInterval(countdown);
+                    overlay.style.display = 'none';
+                    takePhoto();
+                }
+            }, 1000);
+        }
+        
+        function takePhoto() {
+            const canvas = document.getElementById('hiddenCanvas');
+            const ctx = canvas.getContext('2d');
             
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             
-            // Capturer l'image (miroir pour selfie)
-            ctx.save();
-            ctx.scale(-1, 1);
-            ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
-            ctx.restore();
-            
-            capturedImage = canvas.toDataURL('image/png');
-            
-            // Arrêter la caméra
-            if (video.srcObject) {
-                video.srcObject.getTracks().forEach(track => track.stop());
+            // Pour selfie, inverser l'image
+            if (currentCamera === 'user') {
+                ctx.save();
+                ctx.scale(-1, 1);
+                ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+                ctx.restore();
+            } else {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             }
             
-            goToStep(2);
+            capturedImageData = canvas.toDataURL('image/png');
+            
+            // Arrêter la caméra
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            
+            goToScreen(2);
         }
-
+        
+        function loadFromDevice() {
+            document.getElementById('fileInput').click();
+        }
+        
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    capturedImageData = e.target.result;
+                    goToScreen(2);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        function handleBackgroundSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // Créer un nouvel arrière-plan personnalisé
+                    const customBackground = {
+                        id: 'custom_' + Date.now(),
+                        name: 'Personnalisé',
+                        url: e.target.result
+                    };
+                    
+                    // Ajouter l'arrière-plan au carrousel
+                    addCustomBackgroundToCarousel(customBackground);
+                    
+                    // Le sélectionner automatiquement
+                    selectBackground(customBackground);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        function addCustomBackgroundToCarousel(background) {
+            const carousel = document.getElementById('backgroundsCarousel');
+            const uploadOption = carousel.querySelector('.upload-option');
+            
+            // Créer le nouvel élément avant le bouton +
+            const item = document.createElement('div');
+            item.className = 'background-item';
+            item.onclick = () => selectBackground(background);
+            
+            const img = document.createElement('img');
+            img.src = background.url;
+            img.alt = background.name;
+            
+            item.appendChild(img);
+            carousel.insertBefore(item, uploadOption);
+            
+            // Auto-sélectionner ce nouvel arrière-plan
+            setTimeout(() => {
+                item.classList.add('selected');
+            }, 100);
+        }
+        
+        function selectBackground(background) {
+            // Désélectionner tous
+            document.querySelectorAll('.background-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            // Sélectionner le nouveau - trouver l'élément correspondant
+            const items = document.querySelectorAll('.background-item');
+            items.forEach(item => {
+                const img = item.querySelector('img');
+                if (img && img.src === background.url) {
+                    item.classList.add('selected');
+                }
+            });
+            
+            selectedBackground = background;
+            
+            // Activer le bouton valider
+            document.getElementById('validateBtn').disabled = false;
+        }
+        
         function processImage() {
-            if (!capturedImage || !selectedBackground) {
-                alert('Veuillez d\'abord capturer une photo et sélectionner un arrière-plan.');
+            if (!capturedImageData || !selectedBackground) {
+                alert('Veuillez sélectionner un arrière-plan');
                 return;
             }
             
-            goToStep(3);
+            showProcessing();
             
-            // Simuler le traitement avec une barre de progression
-            let progress = 0;
-            const progressBar = document.getElementById('progressBar');
-            
-            const interval = setInterval(() => {
-                progress += 10;
-                progressBar.style.width = progress + '%';
-                
-                if (progress >= 100) {
-                    clearInterval(interval);
-                    performGreenScreenEffect();
-                }
-            }, 200);
+            // Simuler un délai de traitement pour l'UX
+            setTimeout(() => {
+                performGreenScreenEffect();
+            }, 1500);
         }
-
+        
         function performGreenScreenEffect() {
-            const sensitivity = parseInt(document.getElementById('sensitivity').value);
+            const processCanvas = document.getElementById('processCanvas');
+            const ctx = processCanvas.getContext('2d');
             
-            // Charger l'image capturée
             const img = new Image();
             img.onload = function() {
                 processCanvas.width = img.width;
                 processCanvas.height = img.height;
                 
-                // Dessiner l'image originale
-                processCtx.drawImage(img, 0, 0);
+                ctx.drawImage(img, 0, 0);
                 
-                // Charger l'arrière-plan
                 const bgImg = new Image();
                 bgImg.onload = function() {
-                    // Créer un canvas temporaire pour l'arrière-plan redimensionné
+                    // Redimensionner l'arrière-plan
                     const tempCanvas = document.createElement('canvas');
                     const tempCtx = tempCanvas.getContext('2d');
                     tempCanvas.width = img.width;
                     tempCanvas.height = img.height;
-                    
-                    // Dessiner l'arrière-plan redimensionné
                     tempCtx.drawImage(bgImg, 0, 0, img.width, img.height);
                     
-                    // Appliquer l'effet de suppression de fond vert
-                    const imageData = processCtx.getImageData(0, 0, processCanvas.width, processCanvas.height);
+                    // Appliquer l'effet chroma key
+                    const imageData = ctx.getImageData(0, 0, processCanvas.width, processCanvas.height);
                     const bgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
                     const data = imageData.data;
                     const bgPixels = bgData.data;
+                    
+                    const sensitivity = 40;
                     
                     for (let i = 0; i < data.length; i += 4) {
                         const r = data[i];
                         const g = data[i + 1];
                         const b = data[i + 2];
                         
-                        // Détection du vert (chroma key)
-                        if (g > r + sensitivity && g > b + sensitivity && g > 100) {
-                            // Remplacer par l'arrière-plan
+                        // Détection du vert améliorée
+                        if (g > r + sensitivity && g > b + sensitivity && g > 80) {
                             data[i] = bgPixels[i];
                             data[i + 1] = bgPixels[i + 1];
                             data[i + 2] = bgPixels[i + 2];
@@ -550,72 +978,242 @@
                         }
                     }
                     
-                    processCtx.putImageData(imageData, 0, 0);
+                    ctx.putImageData(imageData, 0, 0);
                     
-                    // Afficher le résultat
                     const result = processCanvas.toDataURL('image/png');
-                    document.getElementById('previewImage').src = result;
+                    document.getElementById('finalResult').src = result;
                     
-                    goToStep(4);
+                    hideProcessing();
+                    goToScreen(3);
                 };
                 bgImg.src = selectedBackground.url;
             };
-            img.src = capturedImage;
+            img.src = capturedImageData;
         }
-
-        function reprocessImage() {
-            performGreenScreenEffect();
-        }
-
-        function downloadImage() {
-            const link = document.createElement('a');
-            link.download = 'photo-fond-vert-' + new Date().getTime() + '.png';
-            link.href = document.getElementById('previewImage').src;
-            link.click();
-        }
-
-        function uploadToGoogleDrive() {
-            // Simulation de l'upload vers Google Drive
-            // Dans une vraie application, ici on ferait l'intégration avec l'API Google Drive
+        
+        async function uploadToGoogleDrive(imageDataUrl, filename) {
+            if (!isGoogleApiInitialized) {
+                throw new Error('Google Drive API non initialisée');
+            }
             
-            // Simuler un délai d'upload
-            const btn = event.target;
-            btn.disabled = true;
-            btn.textContent = '⏳ Envoi en cours...';
+            if (!isUserSignedIn) {
+                // Authentifier l'utilisateur d'abord
+                await signInToGoogle();
+                
+                // Attendre un peu pour que l'authentification soit effective
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
             
-            setTimeout(() => {
-                goToStep(5);
-            }, 2000);
+            try {
+                // Convertir dataURL en Blob
+                const blob = dataURLtoBlob(imageDataUrl);
+                
+                // Métadonnées du fichier
+                const metadata = {
+                    name: filename,
+                    parents: ['appDataFolder'] // Optionnel: stocker dans le dossier app
+                };
+                
+                // Créer FormData pour l'upload multipart
+                const form = new FormData();
+                form.append('metadata', new Blob([JSON.stringify(metadata)], {type: 'application/json'}));
+                form.append('file', blob);
+                
+                // Upload vers Google Drive
+                const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                    method: 'POST',
+                    headers: new Headers({
+                        'Authorization': `Bearer ${gapi.client.getToken().access_token}`
+                    }),
+                    body: form
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erreur upload: ${response.status} ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                console.log('✅ Fichier uploadé sur Google Drive:', result);
+                
+                return result;
+                
+            } catch (error) {
+                console.error('❌ Erreur upload Google Drive:', error);
+                throw error;
+            }
         }
-
-        function goToStep(step) {
-            // Masquer toutes les étapes
-            document.querySelectorAll('.step').forEach(el => {
-                el.classList.remove('active');
+        
+        function dataURLtoBlob(dataURL) {
+            const arr = dataURL.split(',');
+            const mime = arr[0].match(/:(.*?);/)[1];
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            
+            return new Blob([u8arr], {type: mime});
+        }
+        
+        async function shareResult() {
+            const resultImg = document.getElementById('finalResult');
+            const filename = `green-screen-${new Date().getTime()}.png`;
+            
+            try {
+                // Afficher le statut de traitement
+                showProcessing('Sauvegarde en cours...');
+                
+                // 1. Télécharger l'image localement
+                const link = document.createElement('a');
+                link.download = filename;
+                link.href = resultImg.src;
+                link.click();
+                
+                // 2. Tenter l'upload vers Google Drive
+                try {
+                    if (isGoogleApiInitialized && 
+                        !GOOGLE_CONFIG.CLIENT_ID.includes('VOTRE_') && 
+                        !GOOGLE_CONFIG.API_KEY.includes('VOTRE_')) {
+                        
+                        const driveResult = await uploadToGoogleDrive(resultImg.src, filename);
+                        
+                        hideProcessing();
+                        
+                        // Succès complet
+                        showSuccessMessage(`
+                            ✅ <strong>Sauvegarde réussie !</strong><br>
+                            📁 Image sauvegardée localement<br>
+                            ☁️ Envoyée sur Google Drive (ID: ${driveResult.id.substring(0, 8)}...)
+                        `);
+                        
+                    } else {
+                        // Configuration Google Drive manquante
+                        hideProcessing();
+                        showSuccessMessage(`
+                            ✅ <strong>Image sauvegardée localement !</strong><br>
+                            ⚠️ <em>Configuration Google Drive non complétée</em><br>
+                            <small>Voir les instructions dans le code source</small>
+                        `);
+                    }
+                    
+                } catch (driveError) {
+                    console.error('❌ Erreur Google Drive:', driveError);
+                    hideProcessing();
+                    
+                    // Échec Google Drive mais succès local
+                    showSuccessMessage(`
+                        ✅ <strong>Image sauvegardée localement !</strong><br>
+                        ❌ Erreur envoi Google Drive: ${driveError.message}<br>
+                        <small>Vérifiez votre connexion et les permissions</small>
+                    `);
+                }
+                
+                // Retourner à l'écran 1 après un délai
+                setTimeout(() => {
+                    goToScreen(1);
+                    resetApp();
+                }, 3000);
+                
+            } catch (error) {
+                hideProcessing();
+                console.error('❌ Erreur complète:', error);
+                alert('❌ Erreur lors de la sauvegarde: ' + error.message);
+            }
+        }
+        
+        function showSuccessMessage(message) {
+            // Créer ou mettre à jour le message de succès dans l'écran 3
+            let messageDiv = document.getElementById('successMessage');
+            if (!messageDiv) {
+                messageDiv = document.createElement('div');
+                messageDiv.id = 'successMessage';
+                messageDiv.style.cssText = `
+                    background: rgba(16, 185, 129, 0.2);
+                    border: 1px solid #10B981;
+                    color: #D1FAE5;
+                    padding: 20px;
+                    border-radius: 12px;
+                    margin: 20px 0;
+                    text-align: center;
+                    line-height: 1.5;
+                `;
+                
+                const screen3 = document.getElementById('screen3');
+                const shareBtn = screen3.querySelector('.btn-share');
+                screen3.insertBefore(messageDiv, shareBtn);
+            }
+            
+            messageDiv.innerHTML = message;
+        }
+        
+        function showProcessing(message = 'Traitement en cours...') {
+            const overlay = document.getElementById('processingOverlay');
+            const content = overlay.querySelector('.processing-content p');
+            content.textContent = message;
+            overlay.style.display = 'flex';
+        }
+        
+        function goToScreen(screenNumber) {
+            // Masquer tous les écrans
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
             });
             
-            // Afficher l'étape demandée
-            document.getElementById('step' + step).classList.add('active');
-            currentStep = step;
+            // Afficher l'écran demandé
+            document.getElementById('screen' + screenNumber).classList.add('active');
+            currentScreen = screenNumber;
+            
+            // Actions spécifiques par écran
+            if (screenNumber === 2 && capturedImageData) {
+                document.getElementById('capturedPhoto').src = capturedImageData;
+                selectedBackground = null;
+                document.getElementById('validateBtn').disabled = true;
+                // Ne désélectionner que les arrière-plans prédéfinis, pas les personnalisés
+                document.querySelectorAll('.background-item').forEach(item => {
+                    item.classList.remove('selected');
+                });
+            } else if (screenNumber === 3) {
+                // Mettre à jour l'interface du bouton de partage
+                updateAuthUI();
+                
+                // Nettoyer les anciens messages de succès
+                const oldMessage = document.getElementById('successMessage');
+                if (oldMessage) {
+                    oldMessage.remove();
+                }
+            }
         }
-
-        function restart() {
-            // Réinitialiser toutes les variables
-            capturedImage = null;
+        
+        function showProcessing() {
+            document.getElementById('processingOverlay').style.display = 'flex';
+        }
+        
+        function hideProcessing() {
+            document.getElementById('processingOverlay').style.display = 'none';
+        }
+        
+        function resetApp() {
+            capturedImageData = null;
             selectedBackground = null;
-            currentStep = 1;
+            isCameraStarted = false;
             
-            // Remettre la barre de progression à zéro
-            document.getElementById('progressBar').style.width = '0%';
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
             
-            // Réinitialiser les boutons
-            document.querySelectorAll('.btn').forEach(btn => {
-                btn.disabled = false;
-                btn.textContent = btn.textContent.replace('⏳ Envoi en cours...', '☁️ Envoyer sur Google Drive');
-            });
-            
-            // Retourner à l'étape 1
-            goToStep(1);
+            video.style.display = 'none';
+            document.getElementById('cameraPlaceholder').style.display = 'flex';
+            updateCaptureButtonUI('initial');
+            clearErrorMessage();
+        }
+        
+        function closeApp() {
+            resetApp();
+            // Dans une vraie app, ici on fermerait l'application
+            alert('Application fermée');
         }
     </script>
 </body>
