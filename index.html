@@ -438,7 +438,7 @@ Utilisez des variables d'environnement en production.
                 📁
             </button>
             <button class="btn-capture" id="captureBtn" onclick="capturePhoto()" title="Démarrer la caméra / Prendre une photo">
-                📸
+                
             </button>
             <button class="btn-icon" onclick="switchCamera()" title="Changer de caméra">
                 🔄
@@ -451,8 +451,8 @@ Utilisez des variables d'environnement en production.
     <!-- Écran 2: Sélection arrière-plan -->
     <div class="screen" id="screen2">
         <div class="header">
-            <div class="logo-placeholder">📷</div>
-            <div class="title">Green Screen</div>
+            <img src="logo.jpeg" alt="Logo" class="logo-placeholder" />
+            <div class="title">CGI - PhotoBooth - 17 Juin </div>
             <button class="close-btn" onclick="goToScreen(1)">×</button>
         </div>
         
@@ -507,8 +507,8 @@ Utilisez des variables d'environnement en production.
 
     <script>
         // 🔧 CONFIGURATION GOOGLE DRIVE - À MODIFIER ICI UNIQUEMENT
-        const GOOGLE_CLIENT_ID = '886928365036-2s4hmibrv1o3051ngvi7g9vvqi3oef3b.apps.googleusercontent.com';
-        const GOOGLE_API_KEY = 'AIzaSyD8ISvnEQ3CNp4uekfvM2xwtXKLdixnnPE';
+		const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '886928365036-2s4hmibrv1o3051ngvi7g9vvqi3oef3b.apps.googleusercontent.com';
+		const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || 'AIzaSyD8ISvnEQ3CNp4uekfvM2xwtXKLdixnnPE';
         
         // Variables globales de l'application
         let currentScreen = 1;
@@ -530,11 +530,13 @@ Utilisez des variables d'environnement en production.
         let isUserSignedIn = false;
         
         // Arrière-plans disponibles
+        // Arrière-plans disponibles
         const backgrounds = [
-            { id: 'mountain', name: 'Montagne', url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9InNreTIiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjNDI4NEZCII8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjN0ZBMkY0Ii8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9InVybCgjc2t5MikiLz48cG9seWdvbiBwb2ludHM9IjAsMTgwIDEwMCwxMDAgMjAwLDE0MCA0MDAsMTgwIDQwMCwzMDAgMCwzMDAiIGZpbGw9IiMyNzc0OEIiLz48cG9seWdvbiBwb2ludHM9IjUwLDIyMCAxNTAsMTIwIDI1MCwxNjAgNDAwLDIyMCA0MDAsMzAwIDUwLDMwMCIgZmlsbD0iIzFCNEY2NiIvPjxwb2x5Z29uIHBvaW50cz0iMTAwLDI1MCAyMDAsMTUwIDMwMCwxOTAgNDAwLDI1MCA0MDAsMzAwIDEwMCwzMDAiIGZpbGw9IiMxNDNGNTUiLz48L3N2Zz4=' },
-            { id: 'beach', name: 'Plage', url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9InNreSIgeDE9IjAlIiB5MT0iMCUiIHgyPSIwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiM4N0NFRUIiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNGRkY1RTQiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0idXJsKCNza3kpIi8+PGVsbGlwc2UgY3g9IjEwMCIgY3k9IjgwIiByeD0iNDAiIHJ5PSIyMCIgZmlsbD0iI0ZGRkZGRiIgb3BhY2l0eT0iMC44Ii8+PGVsbGlwc2UgY3g9IjMwMCIgY3k9IjYwIiByeD0iNjAiIHJ5PSIzMCIgZmlsbD0iI0ZGRkZGRiIgb3BhY2l0eT0iMC43Ii8+PHJlY3QgeT0iMjAwIiB3aWR0aD0iNDAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI0Y0RDE0NiIvPjxlbGxpcHNlIGN4PSIzNTAiIGN5PSI4MCIgcng9IjI1IiByeT0iMjUiIGZpbGw9IiNGRkQ3MDAiLz48L3N2Zz4=' },
-            { id: 'city', name: 'Ville', url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9InNreTMiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMzQ0OTVFIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjNjE3NjhEIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9InVybCgjc2t5MykiLz48cmVjdCB4PSIyMCIgeT0iMTgwIiB3aWR0aD0iNDAiIGhlaWdodD0iMTIwIiBmaWxsPSIjMkMyQzMzIi8+PHJlY3QgeD0iODAiIHk9IjE0MCIgd2lkdGg9IjUwIiBoZWlnaHQ9IjE2MCIgZmlsbD0iIzNBM0E0MiIvPjxyZWN0IHg9IjE1MCIgeT0iMTAwIiB3aWR0aD0iNjAiIGhlaWdodD0iMjAwIiBmaWxsPSIjMkMyQzMzIi8+PHJlY3QgeD0iMjMwIiB5PSIxMjAiIHdpZHRoPSI0NSIgaGVpZ2h0PSIxODAiIGZpbGw9IiMzQTNBNDIiLz48cmVjdCB4PSIyOTAiIHk9IjE2MCIgd2lkdGg9IjUwIiBoZWlnaHQ9IjE0MCIgZmlsbD0iIzJDMkMzMyIvPjxyZWN0IHg9IjM1MCIgeT0iMTkwIiB3aWR0aD0iNDAiIGhlaWdodD0iMTEwIiBmaWxsPSIjM0EzQTQyIi8+PC9zdmc+'},
-            { id: 'space', name: 'Espace', url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9InNwYWNlIiBjeD0iNTAlIiBjeT0iNTAlIiByPSI1MCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMyNDI0MzAiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMwMDAwMDAiLz48L3JhZGlhbEdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0idXJsKCNzcGFjZSkiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSIyIiBmaWxsPSIjRkZGRkZGIi8+PGNpcmNsZSBjeD0iMTUwIiBjeT0iNDAiIHI9IjEiIGZpbGw9IiNGRkZGRkYiLz48Y2lyY2xlIGN4PSIyNTAiIGN5PSI3MCIgcj0iMS41IiBmaWxsPSIjRkZGRkZGIi8+PGNpcmNsZSBjeD0iMzUwIiBjeT0iNTAiIHI9IjEiIGZpbGw9IiNGRkZGRkYiLz48Y2lyY2xlIGN4PSIxMDAiIGN5PSIxNTAiIHI9IjEiIGZpbGw9IiNGRkZGRkYiLz48Y2lyY2xlIGN4PSIzMDAiIGN5PSIyMDAiIHI9IjIiIGZpbGw9IiNGRkZGRkYiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIyNTAiIHI9IjEuNSIgZmlsbD0iI0ZGRkZGRiIvPjxjaXJjbGUgY3g9IjMwMCIgY3k9IjEwMCIgcj0iNDAiIGZpbGw9IiNGRkZGRkYiIG9wYWNpdHk9IjAuMSIvPjxjaXJjbGUgY3g9IjMwMCIgY3k9IjEwMCIgcj0iMzAiIGZpbGw9IiNGRkZGRkYiIG9wYWNpdHk9IjAuMyIvPjxjaXJjbGUgY3g9IjMwMCIgY3k9IjEwMCIgcj0iMjAiIGZpbGw9IiNGRkZGRkYiIG9wYWNpdHk9IjAuNSIvPjwvc3ZnPg==' }
+            { id: 'image1', name: 'Image 1', url: 'image1.jpeg' },
+            { id: 'image2', name: 'Image 2', url: 'image2.jpeg' },
+			{ id: 'image1', name: 'Image 1', url: 'image3.jpeg' },
+            { id: 'image2', name: 'Image 2', url: 'image4.jpeg' },
+            { id: 'image3', name: 'Image 3', url: 'image5.jpeg' }
         ];
         
         // Initialisation
