@@ -628,10 +628,11 @@ Utilisez des variables d'environnement en production.
         function updateAuthUI() {
             // Mettre à jour l'interface utilisateur selon l'état de connexion
             const subtextEl = document.getElementById('shareButtonSubtext');
+			
+			const isConfigured = GOOGLE_CLIENT_ID && GOOGLE_API_KEY && 
+                                GOOGLE_CLIENT_ID.trim() !== '' && GOOGLE_API_KEY.trim() !== '';
             
-            if (!isGoogleApiInitialized || 
-                GOOGLE_CLIENT_ID.includes('VOTRE_') || 
-                GOOGLE_API_KEY.includes('VOTRE_')) {
+            if (!isGoogleApiInitialized || !isConfigured) {
                 if (subtextEl) {
                     subtextEl.textContent = 'Sauvegarde locale uniquement';
                     subtextEl.style.color = '#FCD34D';
