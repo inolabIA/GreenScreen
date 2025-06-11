@@ -18,9 +18,10 @@ Pour activer l'envoi vers Google Drive, suivez ces étapes :
    - Authorized redirect URIs: ajoutez votre domaine + /callback
 
 3. 🔧 CONFIGURATION DANS LE CODE
-   - Remplacez GOOGLE_CONFIG.CLIENT_ID par votre Client ID OAuth 2.0
-   - Créez une API Key (Credentials > Create Credentials > API Key)
-   - Remplacez GOOGLE_CONFIG.API_KEY par votre API Key
+   - Cherchez les lignes en haut du script :
+     const GOOGLE_CLIENT_ID = 'VOTRE_CLIENT_ID.apps.googleusercontent.com';
+     const GOOGLE_API_KEY = 'VOTRE_API_KEY';
+   - Remplacez par vos vraies clés (Client ID OAuth 2.0 + API Key)
 
 4. 🚀 DÉPLOIEMENT
    - L'app doit être hébergée sur HTTPS (Netlify, Vercel, etc.)
@@ -505,6 +506,11 @@ Utilisez des variables d'environnement en production.
     <input type="file" id="fileInput" accept="image/*" style="display: none;">
 
     <script>
+        // 🔧 CONFIGURATION GOOGLE DRIVE - À MODIFIER ICI UNIQUEMENT
+        const GOOGLE_CLIENT_ID = '886928365036-2s4hmibrv1o3051ngvi7g9vvqi3oef3b.apps.googleusercontent.com';
+        const GOOGLE_API_KEY = 'AIzaSyD8ISvnEQ3CNp4uekfvM2xwtXKLdixnnPE';
+        
+        // Variables globales de l'application
         let currentScreen = 1;
         let video, stream;
         let capturedImageData = null;
@@ -514,8 +520,8 @@ Utilisez des variables d'environnement en production.
         
         // Configuration Google Drive API
         const GOOGLE_CONFIG = {
-            CLIENT_ID: 'VOTRE_CLIENT_ID.apps.googleusercontent.com', // À remplacer
-            API_KEY: 'VOTRE_API_KEY', // À remplacer
+            CLIENT_ID: GOOGLE_CLIENT_ID,
+            API_KEY: GOOGLE_API_KEY,
             DISCOVERY_DOC: 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
             SCOPES: 'https://www.googleapis.com/auth/drive.file'
         };
@@ -540,7 +546,7 @@ Utilisez des variables d'environnement en production.
         async function initializeGoogleAPI() {
             try {
                 // Vérifier si les clés API sont configurées
-                if (GOOGLE_CONFIG.CLIENT_ID.includes('VOTRE_') || GOOGLE_CONFIG.API_KEY.includes('VOTRE_')) {
+                if (GOOGLE_CLIENT_ID.includes('VOTRE_') || GOOGLE_API_KEY.includes('VOTRE_')) {
                     console.warn('⚠️ Configuration Google Drive non complétée. Voir les instructions dans le code.');
                     return;
                 }
@@ -548,13 +554,13 @@ Utilisez des variables d'environnement en production.
                 await gapi.load('client', async () => {
                     try {
                         await gapi.client.init({
-                            apiKey: GOOGLE_CONFIG.API_KEY,
+                            apiKey: GOOGLE_API_KEY,
                             discoveryDocs: [GOOGLE_CONFIG.DISCOVERY_DOC],
                         });
                         
                         // Initialiser Google Identity Services
                         google.accounts.id.initialize({
-                            client_id: GOOGLE_CONFIG.CLIENT_ID,
+                            client_id: GOOGLE_CLIENT_ID,
                             callback: handleCredentialResponse
                         });
                         
@@ -593,7 +599,7 @@ Utilisez des variables d'environnement en production.
             try {
                 // Utiliser Google Identity Services pour l'authentification
                 const tokenClient = google.accounts.oauth2.initTokenClient({
-                    client_id: GOOGLE_CONFIG.CLIENT_ID,
+                    client_id: GOOGLE_CLIENT_ID,
                     scope: GOOGLE_CONFIG.SCOPES,
                     callback: (tokenResponse) => {
                         if (tokenResponse.error) {
@@ -621,8 +627,8 @@ Utilisez des variables d'environnement en production.
             const subtextEl = document.getElementById('shareButtonSubtext');
             
             if (!isGoogleApiInitialized || 
-                GOOGLE_CONFIG.CLIENT_ID.includes('VOTRE_') || 
-                GOOGLE_CONFIG.API_KEY.includes('VOTRE_')) {
+                GOOGLE_CLIENT_ID.includes('VOTRE_') || 
+                GOOGLE_API_KEY.includes('VOTRE_')) {
                 if (subtextEl) {
                     subtextEl.textContent = 'Sauvegarde locale uniquement';
                     subtextEl.style.color = '#FCD34D';
@@ -1074,8 +1080,8 @@ Utilisez des variables d'environnement en production.
                 // 2. Tenter l'upload vers Google Drive
                 try {
                     if (isGoogleApiInitialized && 
-                        !GOOGLE_CONFIG.CLIENT_ID.includes('VOTRE_') && 
-                        !GOOGLE_CONFIG.API_KEY.includes('VOTRE_')) {
+                        !GOOGLE_CLIENT_ID.includes('VOTRE_') && 
+                        !GOOGLE_API_KEY.includes('VOTRE_')) {
                         
                         const driveResult = await uploadToGoogleDrive(resultImg.src, filename);
                         
