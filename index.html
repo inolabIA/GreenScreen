@@ -558,7 +558,7 @@ Utilisez des variables d'environnement en production.
                     try {
                         await gapi.client.init({
                             apiKey: GOOGLE_API_KEY,
-                            discoveryDocs: GOOGLE_CONFIG.DISCOVERY_DOC,
+                            discoveryDocs: [GOOGLE_CONFIG.DISCOVERY_DOC],
                         });
                         
                         // Initialiser Google Identity Services
