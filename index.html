@@ -547,11 +547,12 @@ Utilisez des variables d'environnement en production.
         
         async function initializeGoogleAPI() {
             try {
-                // Vérifier si les clés API sont configurées
-                if (GOOGLE_CLIENT_ID.includes('VOTRE_') || GOOGLE_API_KEY.includes('VOTRE_')) {
-                    console.warn('⚠️ Configuration Google Drive non complétée. Voir les instructions dans le code.');
-                    return;
-                }
+				// Vérifier si les clés API sont configurées
+				if (!GOOGLE_CLIENT_ID || !GOOGLE_API_KEY || 
+						GOOGLE_CLIENT_ID.trim() === '' || GOOGLE_API_KEY.trim() === '') {
+						console.warn('⚠️ Configuration Google Drive non complétée. Ajoutez vos clés API en haut du script.');
+					return;
+}
                 
                 await gapi.load('client', async () => {
                     try {
