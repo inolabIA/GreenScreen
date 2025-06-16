@@ -517,7 +517,7 @@ Configurez les Row Level Security (RLS) policies pour sécuriser l'accès.
         <button class="btn-share" onclick="shareResult()">
             <span id="shareButtonText">Partager</span>
             <small id="shareButtonSubtext" style="display: block; font-size: 12px; opacity: 0.8; margin-top: 4px;">
-                Sauvegarde locale + Supabase
+                
             </small>
         </button>
     </div>
@@ -591,12 +591,12 @@ Configurez les Row Level Security (RLS) policies pour sécuriser l'accès.
             
             if (!isConfigured) {
                 if (subtextEl) {
-                    subtextEl.textContent = 'Sauvegarde locale uniquement';
+                    subtextEl.textContent = '';
                     subtextEl.style.color = '#FCD34D';
                 }
             } else {
                 if (subtextEl) {
-                    subtextEl.textContent = 'Sauvegarde locale + Supabase ✅';
+                    subtextEl.textContent = '';
                     subtextEl.style.color = '#10B981';
                 }
             }
@@ -742,13 +742,13 @@ Configurez les Row Level Security (RLS) policies pour sécuriser l'accès.
                     break;
                     
                 case 'ready':
-                    captureBtn.innerHTML = '📸';
+                    captureBtn.innerHTML = '';
                     captureBtn.title = 'Prendre une photo';
                     break;
                     
                 case 'initial':
                 default:
-                    captureBtn.innerHTML = '📸';
+                    captureBtn.innerHTML = '';
                     captureBtn.title = 'Démarrer la caméra / Prendre une photo';
                     if (placeholder) {
                         placeholder.textContent = 'Appuyez sur 📸 pour démarrer la caméra';
