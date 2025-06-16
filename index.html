@@ -1,43 +1,40 @@
 <!DOCTYPE html>
 <html lang="fr">
 <!--
-🔧 CONFIGURATION GOOGLE DRIVE API REQUISE
+🔧 CONFIGURATION SUPABASE REQUISE
 
-Pour activer l'envoi vers Google Drive, suivez ces étapes :
+Pour activer l'envoi vers Supabase, suivez ces étapes :
 
-1. 📋 GOOGLE CLOUD CONSOLE
-   - Allez sur https://console.cloud.google.com/
-   - Créez un nouveau projet ou sélectionnez un projet existant
-   - Activez l'API Google Drive (APIs & Services > Library > Google Drive API)
+1. 📋 CRÉER UN PROJET SUPABASE
+   - Allez sur https://supabase.com/
+   - Créez un nouveau projet
+   - Notez l'URL et la clé publique (anon key)
 
-2. 🔑 CRÉER LES IDENTIFIANTS
-   - APIs & Services > Credentials
-   - Create Credentials > OAuth 2.0 Client IDs
-   - Application type: Web application
-   - Authorized JavaScript origins: ajoutez votre domaine (ex: https://yourapp.netlify.app)
-   - Authorized redirect URIs: ajoutez votre domaine + /callback
+2. 🗄️ CRÉER LA TABLE ET LE BUCKET
+   - Dans votre projet Supabase, allez dans SQL Editor
+   - Exécutez le script SQL fourni pour créer la table 'photos'
+   - Créez un bucket de stockage nommé 'green-screen-photos'
 
 3. 🔧 CONFIGURATION DANS LE CODE
    - Cherchez les lignes en haut du script :
-     const GOOGLE_CLIENT_ID = 'VOTRE_CLIENT_ID.apps.googleusercontent.com';
-     const GOOGLE_API_KEY = 'VOTRE_API_KEY';
-   - Remplacez par vos vraies clés (Client ID OAuth 2.0 + API Key)
+     const SUPABASE_URL = 'https://votre-projet.supabase.co';
+     const SUPABASE_ANON_KEY = 'votre-cle-publique';
+   - Remplacez par vos vraies valeurs
 
 4. 🚀 DÉPLOIEMENT
    - L'app doit être hébergée sur HTTPS (Netlify, Vercel, etc.)
-   - Localhost ne fonctionne que pour les tests
+   - Localhost fonctionne pour les tests
 
-⚠️ IMPORTANT: Ne jamais exposer ces clés dans un repository public !
-Utilisez des variables d'environnement en production.
+⚠️ IMPORTANT: La clé publique (anon key) peut être exposée côté client.
+Configurez les Row Level Security (RLS) policies pour sécuriser l'accès.
 -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Green Screen App</title>
     
-    <!-- Google API Script -->
-    <script src="https://apis.google.com/js/api.js"></script>
-    <script src="https://accounts.google.com/gsi/client"></script>
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
         * {
@@ -149,19 +146,27 @@ Utilisez des variables d'environnement en production.
             color: #8B5CF6;
         }
 
-        .controls-row {
+        .controls-overlay {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
-            gap: 20px;
-            margin-bottom: 20px;
+            gap: 30px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 50px;
+            padding: 15px 25px;
+            z-index: 10;
         }
 
         .btn-icon {
             width: 50px;
             height: 50px;
             border-radius: 50%;
-            background: rgba(139, 92, 246, 0.2);
+            background: rgba(139, 92, 246, 0.8);
             border: 2px solid #8B5CF6;
             color: white;
             display: flex;
@@ -169,21 +174,34 @@ Utilisez des variables d'environnement en production.
             justify-content: center;
             cursor: pointer;
             font-size: 20px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-icon:hover {
+            background: rgba(139, 92, 246, 1);
+            transform: scale(1.05);
         }
 
         .btn-capture {
             width: 70px;
             height: 70px;
             border-radius: 50%;
-            background: #8B5CF6;
-            border: 4px solid rgba(139, 92, 246, 0.3);
+            background: rgba(139, 92, 246, 0.9);
+            border: 4px solid rgba(139, 92, 246, 0.5);
             color: white;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             font-size: 24px;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-capture:hover {
+            background: rgba(139, 92, 246, 1);
+            transform: scale(1.05);
         }
 
         .btn-capture:active {
@@ -398,9 +416,21 @@ Utilisez des variables d'environnement en production.
         }
 
         @media (max-width: 768px) {
-            .controls-row {
-                justify-content: center;
-                gap: 30px;
+            .controls-overlay {
+                gap: 20px;
+                padding: 12px 20px;
+            }
+            
+            .btn-icon {
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
+            }
+            
+            .btn-capture {
+                width: 60px;
+                height: 60px;
+                font-size: 22px;
             }
             
             .backgrounds-carousel {
@@ -431,18 +461,18 @@ Utilisez des variables d'environnement en production.
             <div class="countdown-overlay" id="countdownOverlay">
                 <span id="countdownNumber">5</span>
             </div>
-        </div>
-        
-        <div class="controls-row">
-            <button class="btn-icon" onclick="loadFromDevice()" title="Charger une photo">
-                📁
-            </button>
-            <button class="btn-capture" id="captureBtn" onclick="capturePhoto()" title="Démarrer la caméra / Prendre une photo">
-                
-            </button>
-            <button class="btn-icon" onclick="switchCamera()" title="Changer de caméra">
-                🔄
-            </button>
+            
+            <!-- Contrôles superposés sur la vidéo -->
+            <div class="controls-overlay">
+                <button class="btn-icon" onclick="loadFromDevice()" title="Charger une photo">
+                     <img src="./folder.png" alt="folder" class="folder-placeholder" width="25" height="25"/>
+                </button>
+                <button class="btn-capture" id="captureBtn" onclick="capturePhoto()" title="Démarrer la caméra / Prendre une photo">
+                </button>
+                <button class="btn-icon" onclick="switchCamera()" title="Changer de caméra">
+                    <img src="./fleche.png" alt="fleche" class="fleche-placeholder" width="25" height="25"/>
+                </button>
+            </div>
         </div>
         
         <div id="errorMessage"></div>
@@ -486,7 +516,7 @@ Utilisez des variables d'environnement en production.
         <button class="btn-share" onclick="shareResult()">
             <span id="shareButtonText">Partager</span>
             <small id="shareButtonSubtext" style="display: block; font-size: 12px; opacity: 0.8; margin-top: 4px;">
-                Sauvegarde locale + Google Drive
+                Sauvegarde locale + Supabase
             </small>
         </button>
     </div>
@@ -506,9 +536,9 @@ Utilisez des variables d'environnement en production.
     <input type="file" id="fileInput" accept="image/*" style="display: none;">
 
     <script>
-        // 🔧 CONFIGURATION GOOGLE DRIVE - À MODIFIER ICI UNIQUEMENT
-		const GOOGLE_CLIENT_ID ='886928365036-2s4hmibrv1o3051ngvi7g9vvqi3oef3b.apps.googleusercontent.com';
-		const GOOGLE_API_KEY = 'AIzaSyD8ISvnEQ3CNp4uekfvM2xwtXKLdixnnPE';
+        // 🔧 CONFIGURATION SUPABASE - À MODIFIER ICI UNIQUEMENT
+        const SUPABASE_URL = 'https://kbzpvusmjmxmoerghzej.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtienB2dXNtam14bW9lcmdoemVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAwODEzNDAsImV4cCI6MjA2NTY1NzM0MH0.uiN0X-iVciCBKoOIoK_QjyJ8lr-jJ5pfKYXZiQn3LBA';
         
         // Variables globales de l'application
         let currentScreen = 1;
@@ -516,136 +546,63 @@ Utilisez des variables d'environnement en production.
         let capturedImageData = null;
         let selectedBackground = null;
         let currentCamera = 'user'; // 'user' pour frontale, 'environment' pour arrière
-        let isCameraStarted = false; // Nouveau: état de la caméra
+        let isCameraStarted = false;
         
-        // Configuration Google Drive API
-        const GOOGLE_CONFIG = {
-            CLIENT_ID: GOOGLE_CLIENT_ID,
-            API_KEY: GOOGLE_API_KEY,
-            DISCOVERY_DOC: 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
-            SCOPES: 'https://www.googleapis.com/auth/drive.file'
-        };
+        // Configuration Supabase
+        let supabase = null;
+        let isSupabaseInitialized = false;
         
-        let isGoogleApiInitialized = false;
-        let isUserSignedIn = false;
-        
-        // Arrière-plans disponibles
         // Arrière-plans disponibles
         const backgrounds = [
             { id: 'image1', name: 'Image 1', url: 'image1.jpeg' },
             { id: 'image2', name: 'Image 2', url: 'image2.jpeg' },
-			{ id: 'image1', name: 'Image 1', url: 'image3.jpeg' },
-            { id: 'image2', name: 'Image 2', url: 'image4.jpeg' },
-            { id: 'image3', name: 'Image 3', url: 'image5.jpeg' }
+            { id: 'image3', name: 'Image 3', url: 'image3.jpeg' },
+            { id: 'image4', name: 'Image 4', url: 'image4.jpeg' },
+            { id: 'image5', name: 'Image 5', url: 'image5.jpeg' }
         ];
         
         // Initialisation
         document.addEventListener('DOMContentLoaded', function() {
             initializeApp();
-            initializeGoogleAPI();
+            initializeSupabase();
         });
         
-        async function initializeGoogleAPI() {
+        function initializeSupabase() {
             try {
-				// Vérifier si les clés API sont configurées
-				if (!GOOGLE_CLIENT_ID || !GOOGLE_API_KEY || 
-						GOOGLE_CLIENT_ID.trim() === '' || GOOGLE_API_KEY.trim() === '') {
-						console.warn('⚠️ Configuration Google Drive non complétée. Ajoutez vos clés API en haut du script.');
-					return;
-}
+                // Vérifier si les clés Supabase sont configurées
+                if (!SUPABASE_URL || !SUPABASE_ANON_KEY || 
+                    SUPABASE_URL.trim() === '' || SUPABASE_ANON_KEY.trim() === '' ||
+                    SUPABASE_URL.includes('votre-projet') || SUPABASE_ANON_KEY.includes('votre-cle')) {
+                    console.warn('⚠️ Configuration Supabase non complétée. Ajoutez vos clés dans le script.');
+                    updateSupabaseUI(false);
+                    return;
+                }
                 
-                await gapi.load('client', async () => {
-                    try {
-                        await gapi.client.init({
-                            apiKey: GOOGLE_API_KEY,
-                            discoveryDocs: [GOOGLE_CONFIG.DISCOVERY_DOC],
-                        });
-                        
-                        // Initialiser Google Identity Services
-                        google.accounts.id.initialize({
-                            client_id: GOOGLE_CLIENT_ID,
-                            callback: handleCredentialResponse
-                        });
-                        
-                        isGoogleApiInitialized = true;
-                        console.log('✅ Google Drive API initialisée');
-                        
-                    } catch (error) {
-                        console.error('❌ Erreur initialisation Google API:', error);
-                    }
-                });
+                // Initialiser le client Supabase
+                supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                isSupabaseInitialized = true;
+                
+                console.log('✅ Supabase initialisé');
+                updateSupabaseUI(true);
                 
             } catch (error) {
-                console.error('❌ Erreur chargement Google API:', error);
+                console.error('❌ Erreur initialisation Supabase:', error);
+                updateSupabaseUI(false);
             }
         }
         
-        function handleCredentialResponse(response) {
-            // Gérer la réponse d'authentification
-            const credential = response.credential;
-            
-            // Décoder le JWT pour obtenir les infos utilisateur
-            const payload = JSON.parse(atob(credential.split('.')[1]));
-            console.log('✅ Utilisateur connecté:', payload.name);
-            
-            isUserSignedIn = true;
-            
-            // Mettre à jour l'interface si nécessaire
-            updateAuthUI();
-        }
-        
-        async function signInToGoogle() {
-            if (!isGoogleApiInitialized) {
-                throw new Error('Google API non initialisée');
-            }
-            
-            try {
-                // Utiliser Google Identity Services pour l'authentification
-                const tokenClient = google.accounts.oauth2.initTokenClient({
-                    client_id: GOOGLE_CLIENT_ID,
-                    scope: GOOGLE_CONFIG.SCOPES,
-                    callback: (tokenResponse) => {
-                        if (tokenResponse.error) {
-                            throw new Error(tokenResponse.error);
-                        }
-                        
-                        // Token reçu, l'utilisateur est authentifié
-                        gapi.client.setToken(tokenResponse);
-                        isUserSignedIn = true;
-                        console.log('✅ Authentification Google réussie');
-                    },
-                });
-                
-                // Demander l'autorisation
-                tokenClient.requestAccessToken();
-                
-            } catch (error) {
-                console.error('❌ Erreur authentification Google:', error);
-                throw error;
-            }
-        }
-        
-        function updateAuthUI() {
-            // Mettre à jour l'interface utilisateur selon l'état de connexion
+        function updateSupabaseUI(isConfigured) {
             const subtextEl = document.getElementById('shareButtonSubtext');
-			
-			const isConfigured = GOOGLE_CLIENT_ID && GOOGLE_API_KEY && 
-                                GOOGLE_CLIENT_ID.trim() !== '' && GOOGLE_API_KEY.trim() !== '';
             
-            if (!isGoogleApiInitialized || !isConfigured) {
+            if (!isConfigured) {
                 if (subtextEl) {
                     subtextEl.textContent = 'Sauvegarde locale uniquement';
                     subtextEl.style.color = '#FCD34D';
                 }
-            } else if (isUserSignedIn) {
-                if (subtextEl) {
-                    subtextEl.textContent = 'Sauvegarde locale + Google Drive ✅';
-                    subtextEl.style.color = '#10B981';
-                }
             } else {
                 if (subtextEl) {
-                    subtextEl.textContent = 'Sauvegarde locale + Google Drive';
-                    subtextEl.style.color = '#8B5CF6';
+                    subtextEl.textContent = 'Sauvegarde locale + Supabase ✅';
+                    subtextEl.style.color = '#10B981';
                 }
             }
         }
@@ -1001,58 +958,7 @@ Utilisez des variables d'environnement en production.
             img.src = capturedImageData;
         }
         
-        async function uploadToGoogleDrive(imageDataUrl, filename) {
-            if (!isGoogleApiInitialized) {
-                throw new Error('Google Drive API non initialisée');
-            }
-            
-            if (!isUserSignedIn) {
-                // Authentifier l'utilisateur d'abord
-                await signInToGoogle();
-                
-                // Attendre un peu pour que l'authentification soit effective
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-            
-            try {
-                // Convertir dataURL en Blob
-                const blob = dataURLtoBlob(imageDataUrl);
-                
-                // Métadonnées du fichier
-                const metadata = {
-                    name: filename,
-                    parents: ['appDataFolder'] // Optionnel: stocker dans le dossier app
-                };
-                
-                // Créer FormData pour l'upload multipart
-                const form = new FormData();
-                form.append('metadata', new Blob([JSON.stringify(metadata)], {type: 'application/json'}));
-                form.append('file', blob);
-                
-                // Upload vers Google Drive
-                const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-                    method: 'POST',
-                    headers: new Headers({
-                        'Authorization': `Bearer ${gapi.client.getToken().access_token}`
-                    }),
-                    body: form
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Erreur upload: ${response.status} ${response.statusText}`);
-                }
-                
-                const result = await response.json();
-                console.log('✅ Fichier uploadé sur Google Drive:', result);
-                
-                return result;
-                
-            } catch (error) {
-                console.error('❌ Erreur upload Google Drive:', error);
-                throw error;
-            }
-        }
-        
+        // Fonction pour convertir dataURL en Blob
         function dataURLtoBlob(dataURL) {
             const arr = dataURL.split(',');
             const mime = arr[0].match(/:(.*?);/)[1];
@@ -1067,9 +973,75 @@ Utilisez des variables d'environnement en production.
             return new Blob([u8arr], {type: mime});
         }
         
+        // Fonction pour uploader vers Supabase
+        async function uploadToSupabase(imageDataUrl, filename) {
+            if (!isSupabaseInitialized || !supabase) {
+                throw new Error('Supabase non initialisé');
+            }
+            
+            try {
+                // Convertir dataURL en Blob
+                const blob = dataURLtoBlob(imageDataUrl);
+                
+                // 1. Uploader l'image dans le bucket storage
+                const { data: storageData, error: storageError } = await supabase.storage
+                    .from('green-screen-photos')
+                    .upload(`photos/${filename}`, blob, {
+                        contentType: 'image/png',
+                        upsert: false
+                    });
+                
+                if (storageError) {
+                    throw new Error(`Erreur upload storage: ${storageError.message}`);
+                }
+                
+                // 2. Obtenir l'URL publique
+                const { data: urlData } = supabase.storage
+                    .from('green-screen-photos')
+                    .getPublicUrl(`photos/${filename}`);
+                
+                // 3. Enregistrer les métadonnées dans la table
+                const { data: dbData, error: dbError } = await supabase
+                    .from('photos')
+                    .insert([
+                        {
+                            filename: filename,
+                            storage_path: `photos/${filename}`,
+                            public_url: urlData.publicUrl,
+                            created_at: new Date().toISOString(),
+                            size: blob.size,
+                            content_type: 'image/png'
+                        }
+                    ])
+                    .select();
+                
+                if (dbError) {
+                    // Si erreur DB, on supprime le fichier du storage
+                    await supabase.storage
+                        .from('green-screen-photos')
+                        .remove([`photos/${filename}`]);
+                    
+                    throw new Error(`Erreur base de données: ${dbError.message}`);
+                }
+                
+                console.log('✅ Photo uploadée sur Supabase:', dbData[0]);
+                
+                return {
+                    storage: storageData,
+                    database: dbData[0],
+                    publicUrl: urlData.publicUrl
+                };
+                
+            } catch (error) {
+                console.error('❌ Erreur upload Supabase:', error);
+                throw error;
+            }
+        }
+        
         async function shareResult() {
             const resultImg = document.getElementById('finalResult');
-            const filename = `green-screen-${new Date().getTime()}.png`;
+            const timestamp = new Date().getTime();
+            const filename = `green-screen-${timestamp}.png`;
             
             try {
                 // Afficher le statut de traitement
@@ -1081,13 +1053,13 @@ Utilisez des variables d'environnement en production.
                 link.href = resultImg.src;
                 link.click();
                 
-                // 2. Tenter l'upload vers Google Drive
+                // 2. Tenter l'upload vers Supabase
                 try {
-                    if (isGoogleApiInitialized && 
-                        !GOOGLE_CLIENT_ID.includes('VOTRE_') && 
-                        !GOOGLE_API_KEY.includes('VOTRE_')) {
+                    if (isSupabaseInitialized && 
+                        !SUPABASE_URL.includes('votre-projet') && 
+                        !SUPABASE_ANON_KEY.includes('votre-cle')) {
                         
-                        const driveResult = await uploadToGoogleDrive(resultImg.src, filename);
+                        const supabaseResult = await uploadToSupabase(resultImg.src, filename);
                         
                         hideProcessing();
                         
@@ -1095,28 +1067,29 @@ Utilisez des variables d'environnement en production.
                         showSuccessMessage(`
                             ✅ <strong>Sauvegarde réussie !</strong><br>
                             📁 Image sauvegardée localement<br>
-                            ☁️ Envoyée sur Google Drive (ID: ${driveResult.id.substring(0, 8)}...)
+                            ☁️ Envoyée sur Supabase<br>
+                            <small>ID: ${supabaseResult.database.id}</small>
                         `);
                         
                     } else {
-                        // Configuration Google Drive manquante
+                        // Configuration Supabase manquante
                         hideProcessing();
                         showSuccessMessage(`
                             ✅ <strong>Image sauvegardée localement !</strong><br>
-                            ⚠️ <em>Configuration Google Drive non complétée</em><br>
+                            ⚠️ <em>Configuration Supabase non complétée</em><br>
                             <small>Voir les instructions dans le code source</small>
                         `);
                     }
                     
-                } catch (driveError) {
-                    console.error('❌ Erreur Google Drive:', driveError);
+                } catch (supabaseError) {
+                    console.error('❌ Erreur Supabase:', supabaseError);
                     hideProcessing();
                     
-                    // Échec Google Drive mais succès local
+                    // Échec Supabase mais succès local
                     showSuccessMessage(`
                         ✅ <strong>Image sauvegardée localement !</strong><br>
-                        ❌ Erreur envoi Google Drive: ${driveError.message}<br>
-                        <small>Vérifiez votre connexion et les permissions</small>
+                        ❌ Erreur envoi Supabase: ${supabaseError.message}<br>
+                        <small>Vérifiez votre configuration et connexion</small>
                     `);
                 }
                 
@@ -1186,7 +1159,7 @@ Utilisez des variables d'environnement en production.
                 });
             } else if (screenNumber === 3) {
                 // Mettre à jour l'interface du bouton de partage
-                updateAuthUI();
+                updateSupabaseUI(isSupabaseInitialized);
                 
                 // Nettoyer les anciens messages de succès
                 const oldMessage = document.getElementById('successMessage');
