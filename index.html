@@ -538,6 +538,7 @@ Configurez les Row Level Security (RLS) policies pour sécuriser l'accès.
 
     <script>
         // 🔧 CONFIGURATION SUPABASE - À MODIFIER ICI UNIQUEMENT
+		import createClient from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
         const SUPABASE_URL = 'https://kbzpvusmjmxmoerghzej.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtienB2dXNtam14bW9lcmdoemVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAwODEzNDAsImV4cCI6MjA2NTY1NzM0MH0.uiN0X-iVciCBKoOIoK_QjyJ8lr-jJ5pfKYXZiQn3LBA';
         
@@ -572,15 +573,14 @@ Configurez les Row Level Security (RLS) policies pour sécuriser l'accès.
             try {
                 // Vérifier si les clés Supabase sont configurées
                 if (!SUPABASE_URL || !SUPABASE_ANON_KEY || 
-                    SUPABASE_URL.trim() === '' || SUPABASE_ANON_KEY.trim() === '' ||
-                    SUPABASE_URL.includes('votre-projet') || SUPABASE_ANON_KEY.includes('votre-cle')) {
+                    SUPABASE_URL.trim() === '' || SUPABASE_ANON_KEY.trim() === '' ) {
                     console.warn('⚠️ Configuration Supabase non complétée. Ajoutez vos clés dans le script.');
                     updateSupabaseUI(false);
                     return;
                 }
                 
                 // Initialiser le client Supabase avec le bon objet global
-                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                 isSupabaseInitialized = true;
                 
                 console.log('✅ Supabase initialisé');
