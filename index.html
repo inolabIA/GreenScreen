@@ -465,12 +465,13 @@ Configurez les Row Level Security (RLS) policies pour sécuriser l'accès.
             <!-- Contrôles superposés sur la vidéo -->
             <div class="controls-overlay">
                 <button class="btn-icon" onclick="loadFromDevice()" title="Charger une photo">
-                     <img src="./folder.png" alt="folder" class="folder-placeholder" width="25" height="25"/>
+                    📁
                 </button>
                 <button class="btn-capture" id="captureBtn" onclick="capturePhoto()" title="Démarrer la caméra / Prendre une photo">
+                    📸
                 </button>
                 <button class="btn-icon" onclick="switchCamera()" title="Changer de caméra">
-                    <img src="./fleche.png" alt="fleche" class="fleche-placeholder" width="25" height="25"/>
+                    🔄
                 </button>
             </div>
         </div>
@@ -549,7 +550,7 @@ Configurez les Row Level Security (RLS) policies pour sécuriser l'accès.
         let isCameraStarted = false;
         
         // Configuration Supabase
-        let supabase = null;
+        let supabaseClient = null;
         let isSupabaseInitialized = false;
         
         // Arrière-plans disponibles
@@ -578,8 +579,8 @@ Configurez les Row Level Security (RLS) policies pour sécuriser l'accès.
                     return;
                 }
                 
-                // Initialiser le client Supabase
-                supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                // Initialiser le client Supabase avec le bon objet global
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                 isSupabaseInitialized = true;
                 
                 console.log('✅ Supabase initialisé');
@@ -975,7 +976,7 @@ Configurez les Row Level Security (RLS) policies pour sécuriser l'accès.
         
         // Fonction pour uploader vers Supabase
         async function uploadToSupabase(imageDataUrl, filename) {
-            if (!isSupabaseInitialized || !supabase) {
+            if (!isSupabaseInitialized || !supabaseClient) {
                 throw new Error('Supabase non initialisé');
             }
             
@@ -984,7 +985,7 @@ Configurez les Row Level Security (RLS) policies pour sécuriser l'accès.
                 const blob = dataURLtoBlob(imageDataUrl);
                 
                 // 1. Uploader l'image dans le bucket storage
-                const { data: storageData, error: storageError } = await supabase.storage
+                const { data: storageData, error: storageError } = await supabaseClient.storage
                     .from('green-screen-photos')
                     .upload(`photos/${filename}`, blob, {
                         contentType: 'image/png',
@@ -996,12 +997,12 @@ Configurez les Row Level Security (RLS) policies pour sécuriser l'accès.
                 }
                 
                 // 2. Obtenir l'URL publique
-                const { data: urlData } = supabase.storage
+                const { data: urlData } = supabaseClient.storage
                     .from('green-screen-photos')
                     .getPublicUrl(`photos/${filename}`);
                 
                 // 3. Enregistrer les métadonnées dans la table
-                const { data: dbData, error: dbError } = await supabase
+                const { data: dbData, error: dbError } = await supabaseClient
                     .from('photos')
                     .insert([
                         {
@@ -1017,7 +1018,7 @@ Configurez les Row Level Security (RLS) policies pour sécuriser l'accès.
                 
                 if (dbError) {
                     // Si erreur DB, on supprime le fichier du storage
-                    await supabase.storage
+                    await supabaseClient.storage
                         .from('green-screen-photos')
                         .remove([`photos/${filename}`]);
                     
