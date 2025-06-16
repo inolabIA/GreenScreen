@@ -575,7 +575,7 @@ Configurez les Row Level Security (RLS) policies pour sécuriser l'accès.
                 // Vérifier si les clés Supabase sont configurées
                 
                 // Initialiser le client Supabase avec le bon objet global
-                supabaseClient = createClient('https://kbzpvusmjmxmoerghzej.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtienB2dXNtam14bW9lcmdoemVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAwODEzNDAsImV4cCI6MjA2NTY1NzM0MH0.uiN0X-iVciCBKoOIoK_QjyJ8lr-jJ5pfKYXZiQn3LBA');
+                supabaseClient = supabase.createClient('https://kbzpvusmjmxmoerghzej.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtienB2dXNtam14bW9lcmdoemVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAwODEzNDAsImV4cCI6MjA2NTY1NzM0MH0.uiN0X-iVciCBKoOIoK_QjyJ8lr-jJ5pfKYXZiQn3LBA');
                 isSupabaseInitialized = true;
                 
                 console.log('✅ Supabase initialisé');
